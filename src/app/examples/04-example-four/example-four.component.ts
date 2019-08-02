@@ -1,7 +1,23 @@
-import { Component, OnInit, Injectable } from '@angular/core';
+import { Component, OnInit, Injectable, Inject } from '@angular/core';
 import { FormControl } from '../../reactive-forms-two';
 import { interval } from 'rxjs';
 import { take, tap, debounceTime, switchMap, map } from 'rxjs/operators';
+
+@Injectable({
+  providedIn: 'root',
+})
+export class UserService {
+  start = Math.random() > 0.5;
+
+  doesNameExist(_: string) {
+    this.start = !this.start;
+
+    return interval(500).pipe(
+      map(() => ({ payload: this.start })),
+      take(1),
+    );
+  }
+}
 
 @Component({
   selector: 'app-example-four',
@@ -11,7 +27,11 @@ import { take, tap, debounceTime, switchMap, map } from 'rxjs/operators';
 export class ExampleFourComponent implements OnInit {
   usernameControl = new FormControl<string>();
 
-  constructor(private userService: UserService) {}
+  constructor(
+    // using Inject here for stackblitz compatibility
+    @Inject(UserService)
+    private userService: UserService,
+  ) {}
 
   ngOnInit() {
     this.usernameControl.valueChanges
@@ -27,21 +47,5 @@ export class ExampleFourComponent implements OnInit {
         })),
       )
       .subscribe(this.usernameControl.source);
-  }
-}
-
-@Injectable({
-  providedIn: 'root',
-})
-export class UserService {
-  start = Math.random() > 0.5;
-
-  doesNameExist(_: string) {
-    this.start = !this.start;
-
-    return interval(500).pipe(
-      map(() => ({ payload: this.start })),
-      take(1),
-    );
   }
 }

@@ -37,7 +37,7 @@ The ReactiveFormsModule is pretty good, but it has a number of problems.
 Fundamentally, the existing `AbstractControl` class does not offer the extensibility / ease of use that such an important object should have. This is a proposal to re-think the design of `AbstractControl` for inclusion in an eventual `ReactiveFormsModule2`. In general, it addresses points 1, 3, 4, and 5, above.
 
 - Code for this proposal can be found in [this github repo](https://github.com/thefliik/reactive-forms-2-proposal).
-- You can jump to some written examples blow.
+- You can [jump to some written examples](#example-1-linking-one-formcontrol-to-another-formcontrol) below.
 
 This proposal is demostrated in [this Stackblitz project](https://stackblitz.com/github/thefliik/reactive-forms-2-proposal). The demo also contains an example compatibility directive, letting the new `AbstractControl` be used with existing angular material components.
 
@@ -79,6 +79,10 @@ abstract class AbstractControl<Value = any, Data = any> {
   status: 'DISABLED' | 'PENDING' | 'VALID' | 'INVALID';
   statusChanges: Observable<'DISABLED' | 'PENDING' | 'VALID' | 'INVALID'>;
 
+  /**
+   * Emits focus events intended to signal that the `input` associated
+   * with a FormControl should receive focuse in the browser.
+   */
   focusChanges: Observable<{ [key: string]: any } | undefined>;
 
   disabled: boolean;
@@ -333,7 +337,7 @@ controlA.changes.subscribe(controlC.source);
 
 #### Example 2: dynamically parse a control's text input
 
-Here, a user is providing text date values and we want a control with javascript `Date` objects.
+Here, a user is providing text date values and we want a control with javascript `Date` objects. Importantly, the `dateControl` in the example below shares all the `touched`, `changed`, `invalid`, `errors`, etc, state with the `inputControl`.
 
 ```ts
 // regex from https://stackoverflow.com/a/15504877/5490505
@@ -498,15 +502,17 @@ Ultimately, I see these as failings of the current `ValidatorFn` / `ValidationEr
 
 Personally, I came up with a pretty simple update to the validator API to fix those issues (which, if accepted, will change this proposal), but I've decided to only focus on the AbstractControl API in this issue to help focus the discussion. If this proposal (or a form of it) is accepted, I'll follow up by sharing a `Validator` proposal which will compliment and modestly change this new AbstractControl API.
 
-Additionally, this proposal does not touch ControlValueAccessor. This decision was again made to focus discussion on AbstractControl. This being said, this API would allow for the `ControlValueAccessor` interface to be changed to simply
+Additionally, this proposal does not touch ControlValueAccessor. This decision was again made to focus discussion on AbstractControl. This being said, this API would allow for the `ControlValueAccessor` interface to be changed to simply:
 
 ```ts
-interface ControlValueAccessor {
-  control: AbstractControl;
+interface ControlValueAccessor<T = any> {
+  control: AbstractControl<T>;
 }
 ```
 
-This would make implementing the interface much easier, and would offer much more power an flexibilty to users. For instance, it opens up the ability for a ControlValueAccessor for an "address" input to link directly to a FormGroup.
+_you can see an example of this [in the repo](https://github.com/thefliik/reactive-forms-2-proposal/blob/master/src/app/reactive-forms-two/directives/form_control_directive.ts)_
+
+This would make implementing the interface easier, and would offer more power and flexibility to users. For instance, it opens up the ability for an "address" ControlValueAccessor to link directly to a FormGroup.
 
 ### Describe alternatives you've considered
 

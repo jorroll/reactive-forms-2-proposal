@@ -9,6 +9,6 @@ export const SW_VALUE_ACCESSOR = new InjectionToken<
   [string, Type<ControlValueAccessor>]
 >('SW_VALUE_ACCESSOR');
 
-export interface ControlValueAccessor {
-  control: AbstractControl;
+export interface ControlValueAccessor<T = any> {
+  control: AbstractControl<T>;
 }

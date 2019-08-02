@@ -5,6 +5,7 @@ import {
   Directive,
   ElementRef,
   Injector,
+  Inject,
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { FormControl } from '../models';
@@ -23,8 +24,12 @@ export class FormControlDirective implements OnChanges, OnDestroy {
   private subscriptions: Subscription[] = [];
 
   constructor(
+    // using Inject here for stackblitz compatibility
+    @Inject(ElementRef)
     protected el: ElementRef,
+    @Inject(AccessorsService)
     protected accessorsService: AccessorsService,
+    @Inject(Injector)
     protected injector: Injector,
   ) {
     const ValueAccessor = this.accessorsService.get(this.el);
