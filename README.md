@@ -1,12 +1,10 @@
 # This is a proposal to improve `@angular/forms`
 
-It is tracked in issue .
-
 You can demo this proposal on stackblitz: https://stackblitz.com/github/thefliik/reactive-forms-2-proposal.
 
 The focus of this repo is on the API design, **_not_** this specific implementation. For example, this implementation has a dependency on lodash, a version included in Angular/forms would not want this dependency.
 
-If you like this proposal, and wish to update it, feel free to make PRs against this repo. Most discussion of the merits of this proposal would be better left in the associated angular repo issue.
+If you like this proposal, and wish to update it, feel free to make PRs against this repo. Most discussion of the merits of this proposal would be better left in the associated angular issue.
 
 ### Description
 
@@ -36,9 +34,10 @@ The ReactiveFormsModule is pretty good, but it has a number of problems.
 
 ### Describe the solution you'd like
 
-Fundamentally, the existing `AbstractControl` class does not offer the extensibility / ease of use that such an important object should have. This is a proposal to fundamentally re-think the design of `AbstractControl` for inclusion in an eventual `ReactiveFormsModule2`.
+Fundamentally, the existing `AbstractControl` class does not offer the extensibility / ease of use that such an important object should have. This is a proposal to re-think the design of `AbstractControl` for inclusion in an eventual `ReactiveFormsModule2`. In general, it addresses points 1, 3, 4, and 5, above.
 
 - Code for this proposal can be found in [this github repo](https://github.com/thefliik/reactive-forms-2-proposal).
+- You can jump to some written examples blow.
 
 This proposal is demostrated in [this Stackblitz project](https://stackblitz.com/github/thefliik/reactive-forms-2-proposal). The demo also contains an example compatibility directive, letting the new `AbstractControl` be used with existing angular material components.
 
@@ -51,8 +50,11 @@ abstract class AbstractControl<Value = any, Data = any> {
   id: symbol;
   data: Data;
 
+  /**
+   * This property is where all the magic happens and is
+   * explained in greater detail below.
+   */
   source: ControlSource<StateChange<string, any>>;
-
   changes: Observable<StateChange<string, any>>;
 
   /** An observable of value changes to this AbstractControl */
@@ -210,6 +212,12 @@ abstract class AbstractControl<Value = any, Data = any> {
   reset(options?: IAbstractControlResetOptions }): void;
 
   /**
+   * This method can be overridden in classes like FormGroup to support retrieving child
+   * abstract controls.
+   */
+  get(path: string): AbstractControl | null;
+
+  /**
    * Returns an observable of this control's state in the form of
    * StateChange objects which can be used to make another control
    * identical to this one. This observable will complete upon
@@ -265,13 +273,32 @@ interface IAbstractControlResetOptions {
 
 ### [The stackbliz project](https://github.com/thefliik/reactive-forms-2-proposal) contains a more complete description of this proposal, but as an overview:
 
-First off, it's important to state that the new API can handle everything the old one can (plus more). Additionally, while much of the focus of this update is on reactive improvements to the API, the new API can still be used without ever touching an observable (for folks that don't like observables).
+While much of the focus of this update is on reactive improvements to the API, the new API can still be used without ever touching an observable (for folks that don't like observables).
 
 The new `AbstractControl` class has a `source: ControlSource<StateChange<string, any>>` property which is the source of truth for all operations on the AbstractControl. The `ControlSource` is just a modified rxjs `Subject`. Internally, output from `source` is piped to the `changes` observable, which performs any necessary actions to determine the new `AbstractControl` state before emitting the `StateChange<string, any>` object again. This means that subscribing to the `changes` observable will get you all changes to the `AbstractControl`.
 
+For example, a call to `markTouched(true)` internally looks like:
+
+```ts
+markTouched(
+  value: boolean,
+  options: { noEmit?: boolean; meta?: { [key: string]: any } } = {},
+) {
+  if (value !== this._touched) {
+    this.source.next({
+      sources: [this.id],
+      type: 'touched',
+      value,
+      noEmit: options.noEmit,
+      meta: options.meta,
+    });
+  }
+}
+```
+
 Of course, most users will not need this. Subscribing to `valueChanges` gets you an observable containing just the AbstractControl's values, same as before. `errorsChanges` and `stateChanges` also behave the same as previously. Getters such as `value`, `disabled`, `valid`, `errors`, `touched`, etc. allow accessing all properties statically.
 
-Below are a few somewhat advanced examples of the benefits / flexibility of this new API. Both the old API and the new API handle handle the simple stuff with ease, so I'm not going to bother showing simple examples. These examples also specifically focus on things the existing API cannot do. Because `AbstractControl` is abstract (and cannot be instantiated), these example use a simple `FormControl` object that looks like so:
+Below are a few somewhat advanced examples of the benefits / flexibility of this new API (there are additional examples on stackblitz). Both the old API and the new API handle handle the simple stuff with ease, so I'm not going to bother showing simple examples. These examples also specifically focus on things the existing API cannot do. Because `AbstractControl` is abstract (and cannot be instantiated), these example use a simple `FormControl` object that looks like so:
 
 ```ts
 class FormControl<Value = any, Data = any> extends AbstractControl<
@@ -374,7 +401,7 @@ usernameControl.valueChanges
 
 Some things to note in this example:
 
-1. The API allows users to associate a call to `markPending()` with a pecific key (in this case "userService"). This way, calling `markPending(false)` elsewhere (e.g. a different service validation call) will not prematurely mark _this_ service call as no-longer-pending. The AbstractControl is pending so long as any `key` is pending.
+1. The API allows users to associate a call to `markPending()` with a specific key (in this case "userService"). This way, calling `markPending(false)` elsewhere (e.g. a different service validation call) will not prematurely mark _this_ service call as no-longer-pending. The AbstractControl is pending so long as any `key` is true.
 2. Internally, errors are stored associated with a source. In this case, the source is `'MyUserService'`. If this service adds an error, but another service later says there are no errors, that service will not accidently overwrite this service's error.
    1. Importantly, the `errorsChanges` observable combines all errors into one object.
 3. The API could allow for arbitrary `addError()`/`removeError()` methods on AbstractControl, but I decided not to add those methods because you would need to understand the `StateChange` api to use those methods confidently. Users who understand the stateChange api can simply call `control.source.next()` to add/remove an error.
@@ -467,12 +494,16 @@ Ultimately, I see these as failings of the current `ValidatorFn` / `ValidationEr
 
 Personally, I came up with a pretty simple update to the validator API to fix those issues (which, if accepted, will change this proposal), but I've decided to only focus on the AbstractControl API in this issue to help focus the discussion. If this proposal (or a form of it) is accepted, I'll follow up by sharing a `Validator` proposal which will compliment and modestly change this new AbstractControl API.
 
+Additionally, this proposal does not touch ControlValueAccessor. This decision was again made to focus discussion on AbstractControl. This being said, this API would allow for the `ControlValueAccessor` interface to be changed to simply
+
+```ts
+interface ControlValueAccessor {
+  control: AbstractControl;
+}
+```
+
+This would make implementing the interface much easier, and would offer much more power an flexibilty to users. For instance, it opens up the ability for a ControlValueAccessor for an "address" input to link directly to a FormGroup.
+
 ### Describe alternatives you've considered
 
 While fixing the existing `ReactiveFormsModule` is a possibility, it would involve many breaking changes. As `Renderer` -> `Renderer2` has shown, a more user friendly solution is to create a new `ReactiveFormsModule2` module, depricate the old module, and provide a compatibility layer to allow usage of the two side-by-side.
-
-### Other stuff
-
-This proposal fixes the following issues:
-
-#13721 #27389 #27665 #25824 #20040 #17000 #16999 #16933 #31105 #29275 #26683 #23484 #20371 #17090 #13920 #9119 #6895 #19851 #18871 #10530 #6170 #14451 #19686 #20214 #19747 #15741 #19251 #23414 #23336 #3009 #20230 #31046 #24444 #10887 #30610 #30486 #31070 #21823 #16756

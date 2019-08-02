@@ -627,6 +627,14 @@ export abstract class AbstractControl<Value = any, Data = any> {
     return from(state);
   }
 
+  /**
+   * This method can be overridden in classes like FormGroup to support retrieving child
+   * abstract controls.
+   */
+  get(_path: string): AbstractControl | null {
+    return null;
+  }
+
   protected emitStatus(options: { noEmit?: boolean }) {
     if (!options.noEmit) {
       this._statusChanges.next();
