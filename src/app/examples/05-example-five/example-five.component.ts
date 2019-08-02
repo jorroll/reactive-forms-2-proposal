@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { ValidatorFn, FormControl } from 'src/app/reactive-forms-two';
+import { ValidatorFn, FormControl } from '../../reactive-forms-two';
 import { NG_VALIDATORS_2 } from './my-control.directive';
 
 export const lengthValidator: ValidatorFn = control => {

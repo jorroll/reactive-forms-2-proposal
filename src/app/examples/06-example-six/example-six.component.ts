@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormControl } from 'src/app/reactive-forms-two';
+import { FormControl } from '../../reactive-forms-two';
 
 @Component({
   selector: 'app-example-six',
@@ -13,9 +13,5 @@ export class ExampleSixComponent implements OnInit {
 
   constructor() {}
 
-  ngOnInit() {
-    this.inputControl.changes.subscribe(state => {
-      console.log('inputControl', state);
-    });
-  }
+  ngOnInit() {}
 }

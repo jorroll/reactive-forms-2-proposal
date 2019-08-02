@@ -15,7 +15,7 @@ import {
   AbstractControl,
   ValidatorFn,
   AsyncValidatorFn,
-} from 'src/app/reactive-forms-two';
+} from '../../reactive-forms-two';
 
 export const NG_VALIDATORS_2 = new InjectionToken<ValidatorFn>(
   'NG_VALIDATORS_2',
