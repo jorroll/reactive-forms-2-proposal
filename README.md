@@ -2,7 +2,7 @@
 
 It is tracked in issue .
 
-You can demo this proposal on stackblitz here.
+You can demo this proposal on stackblitz: https://stackblitz.com/github/thefliik/reactive-forms-2-proposal.
 
 The focus of this repo is on the API design, **_not_** this specific implementation. For example, this implementation has a dependency on lodash, a version included in Angular/forms would not want this dependency.
 
@@ -38,21 +38,27 @@ The ReactiveFormsModule is pretty good, but it has a number of problems.
 
 Fundamentally, the existing `AbstractControl` class does not offer the extensibility / ease of use that such an important object should have. This is a proposal to fundamentally re-think the design of `AbstractControl` for inclusion in an eventual `ReactiveFormsModule2`.
 
-The updated `AbstractControl` class is best demostrated and described in this Stackblitz project, which not only demostrates usage but describes _why_ decisions were made. The demo also contains an example compatibility directive, letting the new `AbstractControl` be used with existing angular material components.
+- Code for this proposal can be found in [this github repo](https://github.com/thefliik/reactive-forms-2-proposal).
+
+This proposal is demostrated in [this Stackblitz project](https://stackblitz.com/github/thefliik/reactive-forms-2-proposal). The demo also contains an example compatibility directive, letting the new `AbstractControl` be used with existing angular material components.
 
 To simplify the descussion, this proposal only focuses on a new `AbstractControl` class. To further simplify descussion, this proposal uses the same `ValidatorFn`/`AsyncValidatorFn`/`ValidatorErrors` interfaces as before.
 
-For those who can't view the Stackblitz example for whatever reason, the `AbstractControl` interface is reproduced below. Below that, I also provide an overview of why these interface changes are important and beneficial.
+For those who can't view [the Stackblitz example](https://github.com/thefliik/reactive-forms-2-proposal) for whatever reason, the `AbstractControl` interface is reproduced below. Below that, I also provide an overview of why these interface changes are important and beneficial.
 
 ```ts
 abstract class AbstractControl<Value = any, Data = any> {
   id: symbol;
   data: Data;
-  source: Subject<StateChange<string, any>>;
+
+  source: ControlSource<StateChange<string, any>>;
 
   changes: Observable<StateChange<string, any>>;
 
+  /** An observable of value changes to this AbstractControl */
   valueChanges: Observable<Value>;
+  /** An observable of this control's value */
+  values: Observable<Value>;
   value: Value;
   defaultValue: Value;
   isDefaultValue: boolean;
@@ -60,7 +66,13 @@ abstract class AbstractControl<Value = any, Data = any> {
   errors: ValidationErrors | null;
   errorsChanges: Observable<ValidationErrors | null>;
 
-  errorsStore: Map<string | symbol, ValidationErrors>;
+  /**
+   * A map of validation errors keyed to the source which added them.
+   *
+   * In general, users won't need to access this. But it is exposed for
+   * advanced usage.
+   */
+  errorsStore: ReadonlyMap<string | symbol, ValidationErrors>;
 
   status: 'DISABLED' | 'PENDING' | 'VALID' | 'INVALID';
   statusChanges: Observable<'DISABLED' | 'PENDING' | 'VALID' | 'INVALID'>;
@@ -70,7 +82,18 @@ abstract class AbstractControl<Value = any, Data = any> {
   disabled: boolean;
   valid: boolean;
   invalid: boolean;
+
+  /**
+   * A map of pending states keyed to the source which added them.
+   * So long as there are any `true` boolean values, this control's
+   * `pending` property will be `true`.
+   *
+   * In general, users won't need to access this. But it is exposed for
+   * advanced usage.
+   */
+  pendingStore: ReadonlyMap<string | symbol, boolean>;
   pending: boolean;
+
   readonly: boolean;
   submitted: boolean;
   touched: boolean;
@@ -91,7 +114,23 @@ abstract class AbstractControl<Value = any, Data = any> {
    */
   changed: boolean;
   dirty: boolean;
+
+  /**
+   * A map of ValidatorFn keyed to the source which added them.
+   *
+   * In general, users won't need to access this. But it is exposed for
+   * advanced usage.
+   */
+  validatorStore: ReadonlyMap<string | symbol, ValidatorFn>;
   validator: ValidatorFn | null;
+
+  /**
+   * A map of AsyncValidatorFn keyed to the source which added them.
+   *
+   * In general, users won't need to access this. But it is exposed for
+   * advanced usage.
+   */
+  asyncValidatorStore: ReadonlyMap<string | symbol, AsyncValidatorFn>;
   asyncValidator: AsyncValidatorFn | null;
 
   constructor(args?: IAbstractControlArgs<Value, Data>)
@@ -107,7 +146,7 @@ abstract class AbstractControl<Value = any, Data = any> {
       noEmit?: boolean;
       meta?: { [key: string]: any };
     },
-  ): Observable<void>;
+  ): void;
 
   patchValue(
     value: any,
@@ -115,37 +154,38 @@ abstract class AbstractControl<Value = any, Data = any> {
       noEmit?: boolean;
       meta?: { [key: string]: any };
     },
-  ): Observable<void>;
+  ): void;
 
   markTouched(
     value: boolean,
     options?: { noEmit?: boolean; meta?: { [key: string]: any } },
-  ): Observable<void>;
+  ): void;
 
   markChanged(
     value: boolean,
     options?: { noEmit?: boolean; meta?: { [key: string]: any } },
-  ): Observable<void>;
+  ): void;
 
   markReadonly(
     value: boolean,
     options?: { noEmit?: boolean; meta?: { [key: string]: any } },
-  ): Observable<void>;
+  ): void;
 
   markSubmitted(
     value: boolean,
     options?: { noEmit?: boolean; meta?: { [key: string]: any } },
-  ): Observable<void>;
+  ): void;
 
   markPending(
+    key: string | symbol,
     value: boolean,
-    options?: { key?: string | symbol; noEmit?: boolean; meta?: { [key: string]: any } },
-  ): Observable<void>;
+    options?: { noEmit?: boolean; meta?: { [key: string]: any } },
+  ): void;
 
   markDisabled(
     value: boolean,
     options?: { noEmit?: boolean; meta?: { [key: string]: any } },
-  ): Observable<void>;
+  ): void;
 
   setValidators(
     validator: ValidatorFn | ValidatorFn[] | null,
@@ -153,7 +193,7 @@ abstract class AbstractControl<Value = any, Data = any> {
       noEmit?: boolean;
       meta?: { [key: string]: any };
     },
-  ): Observable<void>;
+  ): void;
 
   setAsyncValidators(
     asyncValidator: AsyncValidatorFn | AsyncValidatorFn[] | null,
@@ -161,13 +201,26 @@ abstract class AbstractControl<Value = any, Data = any> {
       noEmit?: boolean;
       meta?: { [key: string]: any };
     },
-  ): Observable<void>;
+  ): void;
 
   focus(
     options?: { noEmit?: boolean; meta?: { [key: string]: any } },
-  ): Observable<void>;
+  ): void;
 
-  reset(options?: IAbstractControlResetOptions }): Observable<void>;
+  reset(options?: IAbstractControlResetOptions }): void;
+
+  /**
+   * Returns an observable of this control's state in the form of
+   * StateChange objects which can be used to make another control
+   * identical to this one. This observable will complete upon
+   * replaying the necessary state changes.
+   */
+  replayState(
+    options?: {
+      noEmit?: boolean;
+      meta?: { [key: string]: any };
+    }
+  ): Observable<StateChange<string, any>>;
 }
 
 interface StateChange<T extends string, V> {
@@ -193,23 +246,28 @@ interface IAbstractControlArgs<V = any, D = any> {
 }
 
 interface IAbstractControlResetOptions {
-  value?: boolean;
-  disabled?: boolean;
-  readonly?: boolean;
-  pending?: boolean;
-  submitted?: boolean;
-  touched?: boolean;
-  changed?: boolean;
+  skipValue?: boolean;
+  skipDisabled?: boolean;
+  skipReadonly?: boolean;
+  skipSubmitted?: boolean;
+  skipTouched?: boolean;
+  skipChanged?: boolean;
+  // by default, reset() events do not effect
+  // linked controls (though the effect of these
+  // events is shared). If you explicitely want
+  // the reset event to be shared, you must pass
+  // `outsideSource: true`.
+  outsideSource?: boolean;
   noEmit?: boolean;
   meta?: { [key: string]: any };
 }
 ```
 
-### The stackbliz project contains a more complete description of this proposal, but as an overview:
+### [The stackbliz project](https://github.com/thefliik/reactive-forms-2-proposal) contains a more complete description of this proposal, but as an overview:
 
-First off it's important to state that the new API can handle everything the old one can, plus more. Additionally, while much of the focus of this update is on reactive improvements to the API, the new API can still be used without ever touching an observable (for folks that don't like observables).
+First off, it's important to state that the new API can handle everything the old one can (plus more). Additionally, while much of the focus of this update is on reactive improvements to the API, the new API can still be used without ever touching an observable (for folks that don't like observables).
 
-The new `AbstractControl` class has a `source: Subject<StateChange<string, any>>` property which is the source of truth for all operations on the AbstractControl. Internally, output from `source` is piped to the `changes` observable, which performs any necessary actions to determine the new `AbstractControl` state before emitting the `StateChange<string, any>` object again. This means that subscribing to the `changes` observable will get you all changes to the `AbstractControl`.
+The new `AbstractControl` class has a `source: ControlSource<StateChange<string, any>>` property which is the source of truth for all operations on the AbstractControl. The `ControlSource` is just a modified rxjs `Subject`. Internally, output from `source` is piped to the `changes` observable, which performs any necessary actions to determine the new `AbstractControl` state before emitting the `StateChange<string, any>` object again. This means that subscribing to the `changes` observable will get you all changes to the `AbstractControl`.
 
 Of course, most users will not need this. Subscribing to `valueChanges` gets you an observable containing just the AbstractControl's values, same as before. `errorsChanges` and `stateChanges` also behave the same as previously. Getters such as `value`, `disabled`, `valid`, `errors`, `touched`, etc. allow accessing all properties statically.
 
@@ -233,11 +291,13 @@ const controlB = new FormControl();
 controlA.changes.subscribe(controlB.source);
 ```
 
-Two form controls can also be linked to each other, meaning that all changes to one will be applied to the other. Because changes are keyed to source ids, this does not cause an infinite loop (as can be seen in the stackblitz example).
+Multiple form controls can also be linked to each other, meaning that all changes to one will be applied to the others. Because changes are keyed to source ids, this does not cause an infinite loop (as can be seen in the stackblitz example).
 
 ```ts
 controlA.changes.subscribe(controlB.source);
 controlB.changes.subscribe(controlA.source);
+controlC.changes.subscribe(controlA.source);
+controlA.changes.subscribe(controlC.source);
 ```
 
 #### Example 2: dynamically parse a control's text input
@@ -245,21 +305,27 @@ controlB.changes.subscribe(controlA.source);
 Here, a user is providing text date values and we want a control with javascript `Date` objects.
 
 ```ts
-const dateRegex = /^\d{4}[\/\-](0?[1-9]|1[012])[\/\-](0?[1-9]|[12][0-9]|3[01])$/;
+// regex from https://stackoverflow.com/a/15504877/5490505
+const dateRegex = /^(?:(?:31(\/|-|\.)(?:0?[13578]|1[02]))\1|(?:(?:29|30)(\/|-|\.)(?:0?[13-9]|1[0-2])\2))(?:(?:1[6-9]|[2-9]\d)?\d{2})$|^(?:29(\/|-|\.)0?2\3(?:(?:(?:1[6-9]|[2-9]\d)?(?:0[48]|[2468][048]|[13579][26])|(?:(?:16|[2468][048]|[3579][26])00))))$|^(?:0?[1-9]|1\d|2[0-8])(\/|-|\.)(?:(?:0?[1-9])|(?:1[0-2]))\4(?:(?:1[6-9]|[2-9]\d)?\d{2})$/;
 
 const dateValidatorFn: ValidatorFn = control => {
-  if (control.value.match(dateRegex)) return null;
-  return { invalidDate: 'Dates must be in the form YYYY-MM-DD' };
+  if (dateRegex.test(control.value)) {
+    return null;
+  }
+
+  return {
+    invalidDate: 'Invalid date format! Try M/D/YY or M/D/YYYY',
+  };
 };
 
-const inputControl = new FormControl({
+this.inputControl = new FormControl({
   value: '',
   validators: dateValidatorFn,
 });
 
-const dateControl = new FormControl<Date | null>({ value: null });
+this.dateControl = new FormControl<Date | null>({ value: null });
 
-inputControl.changes
+this.inputControl.changes
   .pipe(
     map(state => {
       switch (state.type) {
@@ -267,21 +333,21 @@ inputControl.changes
         case 'patchValue':
           return {
             ...state,
-            value: state.value.match(dateRegex) ? new Date(state.value) : null,
+            value: dateRegex.test(state.value) ? new Date(state.value) : null,
           };
         default:
           return state;
       }
     }),
   )
-  .subscribe(dateControl.source);
+  .subscribe(this.dateControl.source);
 
 // To simplify things, we are linking all changes to dateControl back to inputControl
 // EXCEPT for value changes to dateControl. We could also link value changes, but then
 // the example gets more complex.
-dateControl.changes
+this.dateControl.changes
   .pipe(filter(state => !['setValue', 'patchValue'].includes(state.type)))
-  .subscribe(inputControl.source);
+  .subscribe(this.inputControl.source);
 ```
 
 #### Example 3: validating the value of an AbstractControl via a service
@@ -293,31 +359,27 @@ const usernameControl = new FormControl();
 
 usernameControl.valueChanges
   .pipe(
-    tap(() => usernameControl.markPending(true, { key: 'userService' })),
+    tap(() => this.usernameControl.markPending('userService', true)),
     debounceTime(500),
     switchMap(value => this.userService.doesNameExist(value)),
-    tap(() => usernameControl.markPending(false, { key: 'userService' })),
+    tap(() => this.usernameControl.markPending('userService', false)),
     map(response => ({
       sources: ['MyUserService'],
       type: 'errors',
-      value: response.payload === true ? { userNameExists: true } : null,
+      value: response.payload ? { userNameExists: true } : null,
     })),
   )
-  .subscribe(usernameControl.source);
+  .subscribe(this.usernameControl.source);
 ```
 
 Some things to note in this example:
 
-1. Notice also how the API allows you to associate a specific `key` with a call to `markPending()`. This way, calling `markPending(false)` elsewhere (e.g. a different service validation call) will not prematurely mark _this_ service call as no-longer-pending. The AbstractControl is pending so long as any `key` is pending.
+1. The API allows users to associate a call to `markPending()` with a pecific key (in this case "userService"). This way, calling `markPending(false)` elsewhere (e.g. a different service validation call) will not prematurely mark _this_ service call as no-longer-pending. The AbstractControl is pending so long as any `key` is pending.
 2. Internally, errors are stored associated with a source. In this case, the source is `'MyUserService'`. If this service adds an error, but another service later says there are no errors, that service will not accidently overwrite this service's error.
    1. Importantly, the `errorsChanges` observable combines all errors into one object.
 3. The API could allow for arbitrary `addError()`/`removeError()` methods on AbstractControl, but I decided not to add those methods because you would need to understand the `StateChange` api to use those methods confidently. Users who understand the stateChange api can simply call `control.source.next()` to add/remove an error.
 
 #### Example 4: using dependency injection to dynamically add new validator functions to a control
-
-Implementing this example is probably more advanced than most users have ever dealt with, but if they've ever _used_ the `FormControlDirective` (i.e. `[formControl]`), then this change will make your life a little less surprising / more consistent.
-
-First, some background:
 
 In the _existing_ `ReactiveFormsModule`, when you pass a control to a `FormControlDirective` via `[formControl]`, that directive may dynamically add validator functions to the control. It does this by creating a new validator function which combines the control's existing validator function(s) with any additional validator functions the `FormControlDirective` has had injected. It then replaces the control's existing validator function with the new one. This process is complex and can lead to bugs. For example, after this process is complete there isn't any way to determine which validator functions were added by the user vs which ones were added dynamically.
 
@@ -383,12 +445,12 @@ class MyControlDirective {
 
 ### Wrapping up
 
-There's a lot packed in to this API update. For a full overview, you should check out the Stackblitz project.
+There's a lot packed in to this API update. For a full overview, you should [check out the repo](https://github.com/thefliik/reactive-forms-2-proposal).
 
 Two other details to note:
 
-1. When you pass the `noEmit` option to a function, that squelches emissions from `valueChanges`, `errorsChanges`, and `statusChanges`, but it does not effect the `changes` observable. This is a good thing. It means that library authors can hook into the pure stream of state changes on an AbstractControl and choose to honor or ignore `noEmit` as approriate (via an observable operator like `filter()`).
-2. Most methods offer a `meta` option that accepts an arbitray metadata object that will be included in the state change object. This greatly increases customizability / extensibility, as you can attach custom information to any action and access that custom information on the StateChange objects.
+1. When you pass the `noEmit` option to a function, that squelches emissions from `valueChanges`, `values`, `errorsChanges`, and `statusChanges`, but it does not effect the `changes` observable. This is a good thing. It means that library authors can hook into the pure stream of state changes on an AbstractControl and choose to honor or ignore `noEmit` as approriate (via an observable operator like `filter()`).
+2. All methods offer a `meta` option that accepts an arbitray metadata object that will be included in the state change object. This greatly increases customizability / extensibility, as you can attach custom information to any action and access that custom information on the StateChange objects.
 
 ### Things not included in this proposal
 
@@ -408,3 +470,9 @@ Personally, I came up with a pretty simple update to the validator API to fix th
 ### Describe alternatives you've considered
 
 While fixing the existing `ReactiveFormsModule` is a possibility, it would involve many breaking changes. As `Renderer` -> `Renderer2` has shown, a more user friendly solution is to create a new `ReactiveFormsModule2` module, depricate the old module, and provide a compatibility layer to allow usage of the two side-by-side.
+
+### Other stuff
+
+This proposal fixes the following issues:
+
+#13721 #27389 #27665 #25824 #20040 #17000 #16999 #16933 #31105 #29275 #26683 #23484 #20371 #17090 #13920 #9119 #6895 #19851 #18871 #10530 #6170 #14451 #19686 #20214 #19747 #15741 #19251 #23414 #23336 #3009 #20230 #31046 #24444 #10887 #30610 #30486 #31070 #21823 #16756

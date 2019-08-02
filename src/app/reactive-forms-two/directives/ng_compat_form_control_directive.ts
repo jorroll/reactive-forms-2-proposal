@@ -110,7 +110,7 @@ export class NgCompatFormControlDirective implements OnChanges, OnDestroy {
           type: 'errors',
           value: errors,
           meta: { [this.id]: true },
-          ngControl: true, // not sure why, but this property is necessary
+          ngControl: true,
         })),
       )
       .subscribe(this.control.source);

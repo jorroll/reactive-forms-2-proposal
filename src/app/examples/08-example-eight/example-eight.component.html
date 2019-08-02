@@ -1,1 +1,66 @@
-<p>example-eight works!</p>
+<mat-card>
+  <mat-card-title> Example 8 </mat-card-title>
+
+  <mat-card-subtitle>
+    compatibility: using the new API, you can actually do more things with the
+    old API
+  </mat-card-subtitle>
+
+  <mat-card-content>
+    <p>
+      Building off of example 7, you can actually still link one FormControl to
+      multiple inputs using the compatibility directive (something you can't
+      currently do).
+    </p>
+  </mat-card-content>
+
+  <mat-card-content>
+    <div>
+      <mat-form-field>
+        <mat-label> Try selecting a date! </mat-label>
+
+        <input
+          matInput
+          formControl
+          [ngFormControl]="controlA"
+          [matDatepicker]="picker1"
+        />
+
+        <mat-datepicker-toggle
+          matSuffix
+          [for]="picker1"
+        ></mat-datepicker-toggle>
+
+        <mat-datepicker #picker1></mat-datepicker>
+
+        <mat-error> Errors! </mat-error>
+      </mat-form-field>
+    </div>
+
+    <div>
+      <mat-form-field>
+        <mat-label> Or use this input! </mat-label>
+
+        <input
+          matInput
+          formControl
+          [ngFormControl]="controlA"
+          [matDatepicker]="picker2"
+        />
+
+        <mat-datepicker-toggle
+          matSuffix
+          [for]="picker2"
+        ></mat-datepicker-toggle>
+
+        <mat-datepicker #picker2></mat-datepicker>
+
+        <mat-error> Errors! </mat-error>
+      </mat-form-field>
+    </div>
+
+    <div>
+      <p>controlA value: {{ controlA.value | json }}</p>
+    </div>
+  </mat-card-content>
+</mat-card>

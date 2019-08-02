@@ -9,6 +9,10 @@ import {
   MatCardModule,
   MatInputModule,
   MatProgressSpinnerModule,
+  MatToolbarModule,
+  MatFormFieldModule,
+  MatDatepickerModule,
+  MatNativeDateModule,
 } from '@angular/material';
 import { ReactiveForms2Module } from './reactive-forms-two/reactive-forms.module';
 import { ExampleOneComponent } from './examples/01-example-one/example-one.component';
@@ -22,6 +26,7 @@ import {
 import { MyControlDirective } from './examples/05-example-five/my-control.directive';
 import { ExampleSixComponent } from './examples/06-example-six/example-six.component';
 import { ExampleSevenComponent } from './examples/07-example-seven/example-seven.component';
+import { ReactiveFormsModule } from '@angular/forms';
 import { ExampleEightComponent } from './examples/08-example-eight/example-eight.component';
 
 @NgModule({
@@ -42,10 +47,15 @@ import { ExampleEightComponent } from './examples/08-example-eight/example-eight
     BrowserAnimationsModule,
     BrowserModule,
     AppRoutingModule,
+    ReactiveFormsModule,
     ReactiveForms2Module,
     MatCardModule,
     MatInputModule,
     MatProgressSpinnerModule,
+    MatToolbarModule,
+    MatFormFieldModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
   ],
   providers: [],
   bootstrap: [AppComponent],

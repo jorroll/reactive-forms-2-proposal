@@ -48,7 +48,7 @@ export interface IAbstractControlArgs<Value = any, Data = any> {
   changed?: boolean;
 }
 
-export interface IResetOptions {
+export interface IAbstractControlResetOptions {
   skipValue?: boolean;
   skipDisabled?: boolean;
   skipReadonly?: boolean;
@@ -124,7 +124,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
    * and to ensure that a given AbstractControl only processes
    * values one time.
    */
-  id: symbol;
+  id = Symbol(`Control ${AbstractControl.id}`);
 
   data: Data;
 
@@ -213,12 +213,17 @@ export abstract class AbstractControl<Value = any, Data = any> {
     return !!this.errors;
   }
 
-  protected _pendingDefault = false;
+  /**
+   * A map of pending states keyed to the source which added them.
+   * So long as there are any `true` boolean values, this control's
+   * `pending` property will be `true`.
+   */
   pendingStore: ReadonlyMap<string | symbol, boolean> = new Map<
     string | symbol,
     boolean
   >();
 
+  protected _pendingDefault = false;
   get pending() {
     return Array.from(this.pendingStore.values()).some(val => val);
   }
@@ -248,7 +253,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     { [key: string]: any } | undefined
   > = this.changes.pipe(
     filter(({ type, noEmit }) => type === 'focus' && !noEmit),
-    map(() => undefined),
+    map(state => state.meta),
     share(),
   );
 
@@ -286,6 +291,12 @@ export abstract class AbstractControl<Value = any, Data = any> {
     return this._touched || this._changed;
   }
 
+  /**
+   * A map of ValidatorFn keyed to the source which added them.
+   *
+   * In general, users won't need to access this. But it is exposed for
+   * advanced usage.
+   */
   validatorStore: ReadonlyMap<string | symbol, ValidatorFn> = new Map<
     string | symbol,
     ValidatorFn
@@ -296,6 +307,12 @@ export abstract class AbstractControl<Value = any, Data = any> {
     return this._validator;
   }
 
+  /**
+   * A map of AsyncValidatorFn keyed to the source which added them.
+   *
+   * In general, users won't need to access this. But it is exposed for
+   * advanced usage.
+   */
   asyncValidatorStore: ReadonlyMap<string | symbol, AsyncValidatorFn> = new Map<
     string | symbol,
     AsyncValidatorFn
@@ -306,14 +323,8 @@ export abstract class AbstractControl<Value = any, Data = any> {
     return this._asyncValidator;
   }
 
-  // Because the id value is used in the constructor, a class extending
-  // AbstractControl must pass in the id via the `super()` call.
-  // End users never need to provide an id.
-  // See the FormControl file for an example.
-  constructor(id: symbol, args: IAbstractControlArgs<Value, Data> = {}) {
+  constructor(args: IAbstractControlArgs<Value, Data> = {}) {
     AbstractControl.id++;
-
-    this.id = id;
 
     this.data = args.data as Data;
 
@@ -356,7 +367,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
   }
 
   patchValue(
-    value: Value,
+    value: any,
     options: {
       noEmit?: boolean;
       meta?: { [key: string]: any };
@@ -473,7 +484,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     });
   }
 
-  reset(options?: IResetOptions) {
+  reset(options?: IAbstractControlResetOptions) {
     this.source.next({
       sources: [this.id],
       type: 'reset',
@@ -765,7 +776,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
 
         if (state.sources[0] !== this.id && !state.outsideSource) return true;
 
-        const reset = (state.value as IResetOptions) || {};
+        const reset = (state.value as IAbstractControlResetOptions) || {};
 
         if (!reset.skipValue) {
           this.setValue(this._valueDefault, state);

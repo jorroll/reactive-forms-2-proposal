@@ -1,5 +1,12 @@
 app-root {
   display: block;
+  font-size: 1.1rem;
+  background: lavender;
+}
+
+.description,
+.examples {
+  padding: 2rem;
 }
 
 .example {

@@ -1,1 +1,48 @@
-<p>example-seven works!</p>
+<mat-card>
+  <mat-card-title> Example 7 </mat-card-title>
+
+  <mat-card-subtitle>
+    compatibility: using the new API with components made for the old API
+  </mat-card-subtitle>
+
+  <mat-card-content>
+    <p>
+      To ease the transition from the old ReactiveFormsModule API to the new
+      API, a compatibility layer should be included.
+    </p>
+    <p>
+      This example demonstrates using the new FormControl with existing angular
+      material components (which expect an old FormControl). I haven't spent
+      *that* much time on this compatibility directive, so you can probably
+      break it, but hopefully you get the idea.
+    </p>
+  </mat-card-content>
+
+  <mat-card-content>
+    <div>
+      <mat-form-field>
+        <mat-label> Try selecting a date! </mat-label>
+
+        <input
+          matInput
+          formControl
+          [ngFormControl]="controlA"
+          [matDatepicker]="picker2"
+        />
+
+        <mat-datepicker-toggle
+          matSuffix
+          [for]="picker2"
+        ></mat-datepicker-toggle>
+
+        <mat-datepicker #picker2></mat-datepicker>
+
+        <mat-error> Errors! </mat-error>
+      </mat-form-field>
+    </div>
+
+    <div>
+      <p>controlA value: {{ controlA.value | json }}</p>
+    </div>
+  </mat-card-content>
+</mat-card>
