@@ -23,7 +23,7 @@ export class ExampleThreeComponent implements OnInit {
       }
 
       return {
-        invalidDate: 'Invalid date format! Try M/D/YY or M/D/YYYY',
+        invalidDate: 'Invalid date format! Try D/M/YY or D/M/YYYY',
       };
     };
 
@@ -53,11 +53,37 @@ export class ExampleThreeComponent implements OnInit {
       )
       .subscribe(this.dateControl.source);
 
-    // To simplify things, we are linking all changes to dateControl back to inputControl
-    // EXCEPT for value changes to dateControl. We could also link value changes, but then
-    // the example gets more complex.
     this.dateControl.changes
-      .pipe(filter(state => !['setValue', 'patchValue'].includes(state.type)))
+      .pipe(
+        map(state => {
+          // changes originating from the inputControl should be
+          // passed back unmodified
+          if (state.sources[0] === this.inputControl.id) {
+            return state;
+          }
+
+          switch (state.type) {
+            case 'setValue':
+            case 'patchValue':
+              return {
+                ...state,
+                value: dateToString(state.value),
+              };
+            default:
+              return state;
+          }
+        }),
+      )
       .subscribe(this.inputControl.source);
   }
+}
+
+function dateToString(date: Date | null) {
+  if (!date) return '';
+
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+
+  return `${day}/${month}/${year}`;
 }

@@ -22,6 +22,13 @@
         this example, the inputControl begins with an error because it's initial
         value is invalid. The dateControl does not.
       </li>
+      <li>
+        While this example isn't focusing on compatibility with the old
+        <code>ReactiveFormsModule</code> (see examples below for that), it
+        actually uses the material datepicker along with the compatibility
+        directive to allow picking dates for the dateControl (it was easier than
+        building a custom solution for this example).
+      </li>
     </ol>
   </mat-card-content>
 
@@ -36,14 +43,28 @@
       </div>
     </div>
 
-    <div>
-      <p>dateControl value:</p>
-      <p>{{ dateControl.value | json }}</p>
+    <div style="margin-top: 1rem;">
+      <mat-form-field>
+        <mat-label> DateControl </mat-label>
 
-      <div *ngIf="dateControl.touched && dateControl.invalid" class="error">
-        <p>dateControl Errors:</p>
-        <p>{{ dateControl.errors | json }}</p>
-      </div>
+        <input
+          matInput
+          placeholder="M/D/YYYY"
+          formControl
+          [ngFormControl]="dateControl"
+          [matDatepicker]="picker"
+        />
+
+        <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+
+        <mat-datepicker #picker></mat-datepicker>
+
+        <mat-hint>
+          the dateControl wants M/D/YYYY while the inputControl wants D/M/YYYY
+        </mat-hint>
+
+        <mat-error> {{ dateControl.errors | json }} </mat-error>
+      </mat-form-field>
     </div>
   </mat-card-content>
 
@@ -51,9 +72,10 @@
 
   <mat-card-content>
     <p class="body-1">
-      Note that, other than the values of the two controls being different, all
-      other aspects of the controls are in sync. You touch one, and the other is
-      touched as well. Etc.
+      All aspects of the controls are in sync. Note though, that while the
+      values of both controls are in sync, the values are different. A change to
+      the <code>inputControl</code> value effects the
+      <code>dateControl</code> value and vice-versa.
     </p>
 
     <div>
