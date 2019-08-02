@@ -1,0 +1,48 @@
+<mat-card>
+  <mat-card-title> <a href="#example-9">Example 9</a> </mat-card-title>
+
+  <mat-card-subtitle>
+    adding arbitrary meta-data to a "value" emission
+  </mat-card-subtitle>
+
+  <mat-card-content>
+    <p>
+      This example demonstrates adding arbitrary metadata to a new value. You
+      can add metadata to any emission (e.g. touched, dirty, setValidator, etc).
+    </p>
+  </mat-card-content>
+
+  <mat-card-content>
+    <div>
+      <label> Enter some text metadata </label>
+      <input #metaInput />
+    </div>
+
+    <div style="margin-top: 1rem;">
+      <label>
+        Next, try entering some a text value and click the "set value!" button.
+      </label>
+      <input #theInput />
+
+      <button
+        (click)="
+          controlA.patchValue(theInput.value, {
+            meta: { data: metaInput.value }
+          })
+        "
+      >
+        set value!
+      </button>
+    </div>
+  </mat-card-content>
+
+  <mat-card-content>
+    <div>
+      <p>The resulting state change emission: {{ values$ | async | json }}</p>
+      <p>
+        The resulting value emission (it doesn't include metadata):
+        {{ controlA.value }}
+      </p>
+    </div>
+  </mat-card-content>
+</mat-card>

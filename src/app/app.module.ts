@@ -28,6 +28,7 @@ import { ExampleSixComponent } from './examples/06-example-six/example-six.compo
 import { ExampleSevenComponent } from './examples/07-example-seven/example-seven.component';
 import { ReactiveFormsModule } from '@angular/forms';
 import { ExampleEightComponent } from './examples/08-example-eight/example-eight.component';
+import { ExampleNineComponent } from './examples/09-example-nine/example-nine.component';
 
 @NgModule({
   declarations: [
@@ -42,6 +43,7 @@ import { ExampleEightComponent } from './examples/08-example-eight/example-eight
     ExampleSixComponent,
     ExampleSevenComponent,
     ExampleEightComponent,
+    ExampleNineComponent,
   ],
   imports: [
     BrowserAnimationsModule,
