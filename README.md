@@ -212,12 +212,6 @@ abstract class AbstractControl<Value = any, Data = any> {
   reset(options?: IAbstractControlResetOptions }): void;
 
   /**
-   * This method can be overridden in classes like FormGroup to support retrieving child
-   * abstract controls.
-   */
-  get(path: string): AbstractControl | null;
-
-  /**
    * Returns an observable of this control's state in the form of
    * StateChange objects which can be used to make another control
    * identical to this one. This observable will complete upon
@@ -229,6 +223,16 @@ abstract class AbstractControl<Value = any, Data = any> {
       meta?: { [key: string]: any };
     }
   ): Observable<StateChange<string, any>>;
+
+  /**
+   * This method can be overridden in classes like FormGroup to support retrieving child
+   * abstract controls.
+   *
+   * In general, I imagine the process of actually building out this new ReactiveFormsModule2
+   * will result in various convenience methods added to AbstractControl (such as `parent`). For
+   * now, my focus has been on the basic design.
+   */
+  get(path: string): AbstractControl | null;
 }
 
 interface StateChange<T extends string, V> {
