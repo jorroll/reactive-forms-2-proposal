@@ -1,0 +1,31 @@
+<mat-card>
+  <mat-card-title> Example 1 </mat-card-title>
+
+  <mat-card-subtitle>
+    linking one FormControl to another FormControl
+  </mat-card-subtitle>
+
+  <mat-card-content>
+    <p class="body-1">
+      Here, by subscribing the source of <code>controlB</code> to the changes of
+      <code>controlA</code>, <code>controlB</code> will reflect all changes to
+      <code>controlA</code>.
+    </p>
+    <p class="body-1">
+      The opposite is not true however. Changes to <code>controlB</code> do not
+      effect <code>controlA</code>.
+    </p>
+  </mat-card-content>
+
+  <mat-card-content>
+    <div>
+      <label> controlA </label>
+      <input [ngFormControl]="controlA" />
+    </div>
+
+    <div>
+      <label> controlB </label>
+      <input [ngFormControl]="controlB" />
+    </div>
+  </mat-card-content>
+</mat-card>

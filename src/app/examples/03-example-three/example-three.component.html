@@ -1,0 +1,72 @@
+<mat-card>
+  <mat-card-title> Example 3 </mat-card-title>
+
+  <mat-card-subtitle>
+    dynamically parse a control's text input
+  </mat-card-subtitle>
+
+  <mat-card-content>
+    <p class="body-1">
+      Here, a user is providing text date values and we want a control with
+      javascript `Date` objects.
+    </p>
+
+    <p class="body-1">
+      Note:
+    </p>
+
+    <ol>
+      <li>
+        Only the <em>changes</em> of controls are being synced. Any state the
+        controls acquire before being linked to one another is not shared. In
+        this example, the inputControl begins with an error because it's initial
+        value is invalid. The dateControl does not.
+      </li>
+    </ol>
+  </mat-card-content>
+
+  <mat-card-content>
+    <div>
+      <label> inputControl </label>
+      <input [ngFormControl]="inputControl" />
+
+      <div *ngIf="inputControl.touched && inputControl.invalid" class="error">
+        <p>inputControl Errors:</p>
+        <p>{{ inputControl.errors | json }}</p>
+      </div>
+    </div>
+
+    <div>
+      <p>dateControl value:</p>
+      <p>{{ dateControl.value | json }}</p>
+
+      <div *ngIf="dateControl.touched && dateControl.invalid" class="error">
+        <p>dateControl Errors:</p>
+        <p>{{ dateControl.errors | json }}</p>
+      </div>
+    </div>
+  </mat-card-content>
+
+  <hr />
+
+  <mat-card-content>
+    <p class="body-1">
+      Note that, other than the values of the two controls being different, all
+      other aspects of the controls are in sync. You touch one, and the other is
+      touched as well. Etc.
+    </p>
+
+    <div>
+      <p>inputControl touched: {{ inputControl.touched }}</p>
+      <p>dateControl touched: {{ dateControl.touched }}</p>
+
+      <button (click)="dateControl.markTouched(true)">
+        Mark dateControl as touched
+      </button>
+
+      <button (click)="dateControl.markTouched(false)">
+        Mark dateControl as untouched
+      </button>
+    </div>
+  </mat-card-content>
+</mat-card>

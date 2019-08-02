@@ -1,0 +1,32 @@
+<mat-card>
+  <mat-card-title> Example 4 </mat-card-title>
+
+  <mat-card-subtitle>
+    validating the value of an AbstractControl via a service
+  </mat-card-subtitle>
+
+  <mat-card-content>
+    <p class="body-1">
+      Here, a <code>usernameControl</code> is receiving text value from a user
+      and we want to validate that with an external service (e.g. "does the
+      username already exist?").
+    </p>
+  </mat-card-content>
+
+  <mat-card-content>
+    <div>
+      <label> usernameControl </label>
+      <input [ngFormControl]="usernameControl" />
+
+      <div *ngIf="usernameControl.invalid" class="error">
+        <p>usernameControl Errors:</p>
+        <p>{{ usernameControl.errors | json }}</p>
+      </div>
+    </div>
+
+    <div *ngIf="usernameControl.pending">
+      <p>control pending</p>
+      <mat-spinner></mat-spinner>
+    </div>
+  </mat-card-content>
+</mat-card>

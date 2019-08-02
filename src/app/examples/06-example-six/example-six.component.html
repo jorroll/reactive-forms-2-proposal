@@ -1,0 +1,51 @@
+<mat-card>
+  <mat-card-title> Example 6 </mat-card-title>
+
+  <mat-card-subtitle>
+    resetting a form control now behaves as expected (and resets initial values)
+  </mat-card-subtitle>
+
+  <mat-card-content>
+    <p>
+      Here, when we call reset on the <code>inputControl</code> it goes back to
+      the values it was constructed with.
+    </p>
+    <p>
+      A few points to note:
+    </p>
+    <ol>
+      <li>
+        Resetting a form control does not eliminate existing errors. Changing
+        the value will cause any internal validator functions to run again,
+        which may eliminate errors, but if any external services have added
+        errors to the form control then those external services will need to
+        clear the error(s).
+      </li>
+      <li>
+        Resetting a form control does not reset any of the validator functions.
+        It's not clear to me that you'd ever want validator functions to be
+        reset along with the rest of a form control.
+      </li>
+      <li>
+        By default, all of the (resettable) properties are reset. You can
+        optionally pass an options object and specify which properties you
+        <em>do not want</em> to be reset.
+      </li>
+    </ol>
+  </mat-card-content>
+
+  <mat-card-content>
+    <div>
+      <label> inputControl </label>
+      <input [ngFormControl]="inputControl" />
+    </div>
+
+    <div>
+      <p>
+        control touched: {{ inputControl.touched }}. control changed:
+        {{ inputControl.changed }}.
+      </p>
+      <button (click)="inputControl.reset()">reset inputControl</button>
+    </div>
+  </mat-card-content>
+</mat-card>

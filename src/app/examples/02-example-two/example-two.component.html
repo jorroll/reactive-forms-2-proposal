@@ -1,0 +1,29 @@
+<mat-card>
+  <mat-card-title> Example 2 </mat-card-title>
+
+  <mat-card-subtitle>
+    linking two FormControls to each other
+  </mat-card-subtitle>
+
+  <mat-card-content>
+    <p class="body-1">
+      Here, by subscribing the source of <code>controlB</code> to the changes of
+      <code>controlA</code>, as well as the source of <code>controlA</code> to
+      the changes of <code>controlB</code>, any changes effecting either form
+      control will be mirrored on the other form control (this doesn't cause an
+      infinite loop).
+    </p>
+  </mat-card-content>
+
+  <mat-card-content>
+    <div>
+      <label> controlA </label>
+      <input [ngFormControl]="controlA" />
+    </div>
+
+    <div>
+      <label> controlB </label>
+      <input [ngFormControl]="controlB" />
+    </div>
+  </mat-card-content>
+</mat-card>

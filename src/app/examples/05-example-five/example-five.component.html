@@ -1,0 +1,82 @@
+<mat-card>
+  <mat-card-title> Example 5 </mat-card-title>
+
+  <mat-card-subtitle>
+    using dependency injection to dynamically add new validator functions to a
+    control
+  </mat-card-subtitle>
+
+  <mat-card-content>
+    <p>
+      Here, we have two form controls (<code>controlA</code> and
+      <code>controlB</code>) which both do not have any validator functions.
+      Separately, we have a custom directive, <code>[myControlDirective]</code>,
+      which receives a FormControl and dynamically adds injected validator
+      functions. We also have a custom component,
+      <code>app-validation-wrapper</code>, which provides a custom validator
+      function. This function is picked up by the custom directive and added to
+      <code>controlB</code>. It will throw an error if the text is too long.
+    </p>
+  </mat-card-content>
+
+  <mat-card-content>
+    <p>
+      Why this is cool:
+    </p>
+
+    <p>
+      In the existing <code>ReactiveFormsModule</code>, when you pass a control
+      to a <code>FormControlDirective</code> via <code>[formControl]</code>,
+      that directive may dynamically add validator functions to the control. It
+      does this by creating a new validator function which combines the
+      control's existing validator function(s) with any additional validator
+      functions the <code>FormControlDirective</code> has had injected.
+    </p>
+
+    <p>
+      It then replaces the control's existing validator function with the new
+      one. This process is complex and can lead to bugs. For example, after this
+      process is complete there isn't any way to determine which validator
+      functions were added by the user vs which ones were added dynamically.
+    </p>
+
+    <p>
+      Here, validators are internally stored keyed to a source id (similar to
+      errors). If a FormControl is passed to a directive which dymanically
+      injects additional validator functions, those functions will be stored
+      separately from the FormControl's other functions (and are deleted
+      separately). This leads to more consistent, predictable behavior that an
+      unknowledgable user cannot mess with.
+    </p>
+
+    <p>
+      <em>
+        Admittedly this is bordering on an implementation detail, but it's now
+        so much easier to dynamically add validator functions to a control! You
+        don't need to worry about messing stuff up!
+      </em>
+    </p>
+  </mat-card-content>
+
+  <mat-card-content>
+    <div>
+      <label> controlA </label>
+      <input [ngFormControl]="controlA" />
+
+      <div *ngIf="controlA.invalid" class="error">
+        <p>controlA Errors:</p>
+        <p>{{ controlA.errors | json }}</p>
+      </div>
+    </div>
+
+    <app-validation-wrapper [myControlDirective]="controlB">
+      <label> controlB </label>
+      <input [ngFormControl]="controlB" />
+
+      <div *ngIf="controlB.invalid" class="error">
+        <p>controlB Errors:</p>
+        <p>{{ controlB.errors | json }}</p>
+      </div>
+    </app-validation-wrapper>
+  </mat-card-content>
+</mat-card>
