@@ -23,7 +23,7 @@ export class ExampleThreeComponent implements OnInit {
       }
 
       return {
-        invalidDate: 'Invalid date format! Try YYYY/MM/DD',
+        invalidDate: 'Invalid date format! Try YYYY-MM-DD',
       };
     };
 
