@@ -14,8 +14,8 @@ export class ExampleThreeComponent implements OnInit {
   constructor() {}
 
   ngOnInit() {
-    // regex from https://stackoverflow.com/a/15504877/5490505
-    const dateRegex = /^(?:(?:31(\/|-|\.)(?:0?[13578]|1[02]))\1|(?:(?:29|30)(\/|-|\.)(?:0?[13-9]|1[0-2])\2))(?:(?:1[6-9]|[2-9]\d)?\d{2})$|^(?:29(\/|-|\.)0?2\3(?:(?:(?:1[6-9]|[2-9]\d)?(?:0[48]|[2468][048]|[13579][26])|(?:(?:16|[2468][048]|[3579][26])00))))$|^(?:0?[1-9]|1\d|2[0-8])(\/|-|\.)(?:(?:0?[1-9])|(?:1[0-2]))\4(?:(?:1[6-9]|[2-9]\d)?\d{2})$/;
+    // regex from https://www.regextester.com/96683
+    const dateRegex = /^([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))$/;
 
     const dateValidatorFn: ValidatorFn = control => {
       if (dateRegex.test(control.value)) {
@@ -23,7 +23,7 @@ export class ExampleThreeComponent implements OnInit {
       }
 
       return {
-        invalidDate: 'Invalid date format! Try D/M/YY or D/M/YYYY',
+        invalidDate: 'Invalid date format! Try YYYY/MM/DD',
       };
     };
 
@@ -43,7 +43,7 @@ export class ExampleThreeComponent implements OnInit {
               return {
                 ...state,
                 value: dateRegex.test(state.value)
-                  ? new Date(state.value)
+                  ? stringToDate(state.value)
                   : null,
               };
             default:
@@ -85,5 +85,21 @@ function dateToString(date: Date | null) {
   const month = date.getMonth() + 1;
   const day = date.getDate();
 
-  return `${day}/${month}/${year}`;
+  return `${year}-${padString(month)}-${padString(day)}`;
+}
+
+function padString(int: number) {
+  return int < 10 ? `0${int}` : `${int}`;
+}
+
+function stringToDate(text: string) {
+  const parts = text.split('-');
+
+  const date = new Date(2010, 0, 1);
+
+  date.setFullYear(parseInt(parts[0], 10));
+  date.setMonth(parseInt(parts[1], 10) - 1);
+  date.setDate(parseInt(parts[2], 10));
+
+  return date;
 }
