@@ -59,6 +59,22 @@ export class ExampleThreeComponent implements OnInit {
   constructor() {}
 
   ngOnInit() {
+    // To understand why this works,
+    // see the github README on the StateChange API.
+    // As a reminder, any StateChange originating from the `inputControl`
+    // will not be re-processed by the inputControl (even if the `dateControl`
+    // modifies the inputControl's StateChange before applying it).
+
+    // example flow:
+    // - inputControl is changed in the UI
+    // - inputControl processes `setValue` StateChange and emits it from `inputControl#changes`
+    // - The dateControl's subscription to `inputControl#changes` turns the string value
+    //   into a `Date` value before processing the StateChange and re-emitting it from
+    //   `dateControl#changes`.
+    // - The inputControl's subscription to `dateControl#changes` turns the `Date` into a string
+    //   and before then filtering out the `StateChange` because the `inputControl` has already
+    //   processed it.
+
     this.inputControl.changes
       .pipe(
         map(state => {
