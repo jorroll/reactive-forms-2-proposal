@@ -54,7 +54,7 @@ abstract class AbstractControl<V=any, D=any> {
 }
 ```
 
-Internally, the AbstractControl subscribes to output from the `ControlSource` (`source` property) and pipes that output to a `protected processState()` method (that looks awefully similiar to an NGRX reducer, if you have any familiarity). After being processed, the StateChange object is then re-emitted from the `changes` property (so when a subscriber receives a StateChange from the `changes` property, that change has already been applied to the AbstractControl).
+Internally, the AbstractControl subscribes to output from the `ControlSource` (`source` property) and pipes that output to a `protected processState()` method. After being processed, the StateChange object is then re-emitted from the `changes` property (so when a subscriber receives a StateChange from the `changes` property, that change has already been applied to the AbstractControl).
 
 *Figure 3:*
 
