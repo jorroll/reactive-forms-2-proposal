@@ -59,8 +59,8 @@ export interface IAbstractControlResetOptions {
   // linked controls (though the effect of these
   // events is shared). If you explicitely want
   // the reset event to be shared, you must pass
-  // `outsideSource: true`.
-  outsideSource?: boolean;
+  // `outsideSources: true`.
+  outsideSources?: boolean;
   noEmit?: boolean;
   meta?: { [key: string]: any };
 }
@@ -779,10 +779,10 @@ export abstract class AbstractControl<Value = any, Data = any> {
          *
          * This is because `reset()` would have a different effect on each control
          * unless they had the same starting values. If someone truely does want a
-         * `reset()` event to cascade, they must pass the `outsideSource: true` option.
+         * `reset()` event to cascade, they must pass the `outsideSources: true` option.
          */
 
-        if (state.sources[0] !== this.id && !state.outsideSource) return true;
+        if (state.sources[0] !== this.id && !state.outsideSources) return true;
 
         const reset = (state.value as IAbstractControlResetOptions) || {};
 
