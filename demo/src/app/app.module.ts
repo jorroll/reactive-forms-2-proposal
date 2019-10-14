@@ -17,6 +17,7 @@ import {
 import { ExampleOneComponent } from './examples/01-example-one/example-one.component';
 import { ExampleTwoComponent } from './examples/02-example-two/example-two.component';
 import { ExampleThreeComponent } from './examples/03-example-three/example-three.component';
+import { ExampleThreeFiveComponent } from './examples/03.5-example-three-five/example-three-five.component';
 import { ExampleFourComponent } from './examples/04-example-four/example-four.component';
 import {
   ExampleFiveComponent,
@@ -37,6 +38,7 @@ import { ReactiveFormsModule2ProposalCompat } from 'reactive-forms-module2-propo
     ExampleOneComponent,
     ExampleTwoComponent,
     ExampleThreeComponent,
+    ExampleThreeFiveComponent,
     ExampleFourComponent,
     ExampleFiveComponent,
     MyControlDirective,

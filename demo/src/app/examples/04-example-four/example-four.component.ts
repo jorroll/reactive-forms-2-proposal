@@ -25,7 +25,7 @@ export class UserService {
   styleUrls: ['./example-four.component.scss'],
 })
 export class ExampleFourComponent implements OnInit {
-  usernameControl = new FormControl<string>();
+  usernameControl = new FormControl('');
 
   constructor(
     // using Inject here for stackblitz compatibility

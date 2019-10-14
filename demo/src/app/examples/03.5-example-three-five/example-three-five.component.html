@@ -1,0 +1,100 @@
+<mat-card>
+  <mat-card-title> <a href="#example-3-5">Example 3.5</a> </mat-card-title>
+
+  <mat-card-subtitle>
+    dynamically parse a control's text input (another way)
+  </mat-card-subtitle>
+
+  <mat-card-content>
+    <p class="body-1">
+      This example is similar to example 3, in that it also shows how to
+      dynamically transform text date values into javascript `Date` objects.
+    </p>
+
+    <p class="body-1">
+      While the last example made use of the value mapper option provided by the
+      `FormControlDirective`, this example shows manually linking two controls
+      together and transforming the values between them.
+    </p>
+
+    <p class="body-1">
+      Note:
+    </p>
+
+    <ol>
+      <li>
+        Only the <em>changes</em> of controls are being synced. Any state the
+        controls acquire before being linked to one another is not shared. In
+        this example, the inputControl begins with an error because it's initial
+        value is invalid. The dateControl does not.
+      </li>
+      <li>
+        While this example isn't focusing on compatibility with the old
+        <code>ReactiveFormsModule</code> (see examples below for that), it
+        actually uses the material datepicker along with the compatibility
+        directive to allow picking dates for the dateControl (it was easier than
+        building a custom solution for this example).
+      </li>
+    </ol>
+  </mat-card-content>
+
+  <mat-card-content>
+    <div>
+      <label> inputControl </label>
+      <input [ngFormControl]="inputControl" />
+
+      <div *ngIf="inputControl.touched && inputControl.invalid" class="error">
+        <p>inputControl Errors:</p>
+        <p>{{ inputControl.errors | json }}</p>
+      </div>
+    </div>
+
+    <div style="margin-top: 1rem;">
+      <mat-form-field>
+        <mat-label> DateControl </mat-label>
+
+        <input
+          matInput
+          placeholder="M/D/YYYY"
+          formControl
+          [ngFormControl]="dateControl"
+          [matDatepicker]="picker"
+        />
+
+        <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+
+        <mat-datepicker #picker></mat-datepicker>
+
+        <mat-hint>
+          the dateControl wants M/D/YYYY while the inputControl wants YYYY-MM-DD
+        </mat-hint>
+
+        <mat-error> {{ dateControl.errors | json }} </mat-error>
+      </mat-form-field>
+    </div>
+  </mat-card-content>
+
+  <hr />
+
+  <mat-card-content>
+    <p class="body-1">
+      All aspects of the controls are in sync. Note though, that while the
+      values of both controls are in sync, the values are different. A change to
+      the <code>inputControl</code> value effects the
+      <code>dateControl</code> value and vice-versa.
+    </p>
+
+    <div>
+      <p>inputControl touched: {{ inputControl.touched }}</p>
+      <p>dateControl touched: {{ dateControl.touched }}</p>
+
+      <button (click)="dateControl.markTouched(true)">
+        Mark dateControl as touched
+      </button>
+
+      <button (click)="dateControl.markTouched(false)">
+        Mark dateControl as untouched
+      </button>
+    </div>
+  </mat-card-content>
+</mat-card>

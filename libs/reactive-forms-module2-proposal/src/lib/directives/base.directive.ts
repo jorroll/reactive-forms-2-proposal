@@ -77,7 +77,21 @@ export abstract class NgBaseDirective<T extends AbstractControl>
   }
 
   protected toProvidedControlMapFn() {
-    if (this.stateMapper) {
+    if (this.stateMapper && this.valueMapper) {
+      const stateMapper = this.stateMapper;
+      const valueMapper = this.valueMapper;
+
+      return (state: StateChange<string, any>) => {
+        if (state.type === 'value' || state.type === 'valueDefault') {
+          state = {
+            ...state,
+            value: valueMapper.toControl(state.value),
+          };
+        }
+
+        return stateMapper.toControl(state);
+      };
+    } else if (this.stateMapper) {
       const stateMapper = this.stateMapper;
 
       return (state: StateChange<string, any>) => stateMapper.toControl(state);
@@ -100,7 +114,21 @@ export abstract class NgBaseDirective<T extends AbstractControl>
   }
 
   protected fromProvidedControlMapFn() {
-    if (this.stateMapper) {
+    if (this.stateMapper && this.valueMapper) {
+      const stateMapper = this.stateMapper;
+      const valueMapper = this.valueMapper;
+
+      return (state: StateChange<string, any>) => {
+        if (state.type === 'value' || state.type === 'valueDefault') {
+          state = {
+            ...state,
+            value: valueMapper.fromControl(state.value),
+          };
+        }
+
+        return stateMapper.fromControl(state);
+      };
+    } else if (this.stateMapper) {
       const stateMapper = this.stateMapper;
 
       return (state: StateChange<string, any>) =>

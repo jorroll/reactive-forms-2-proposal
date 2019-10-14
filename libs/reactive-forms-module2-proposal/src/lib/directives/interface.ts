@@ -1,4 +1,4 @@
-import { StateChange } from '../models';
+import { StateChange, ValidatorFn } from '../models';
 
 export interface ControlStateMapper {
   fromControl: (state: StateChange<string, any>) => StateChange<string, any>;
@@ -8,4 +8,5 @@ export interface ControlStateMapper {
 export interface ControlValueMapper<ControlValue = any, NewValue = any> {
   fromControl: (value: ControlValue) => NewValue;
   toControl: (value: NewValue) => ControlValue;
+  accessorValidator?: ValidatorFn;
 }

@@ -11,13 +11,13 @@ import {
 } from '@angular/core';
 import { AbstractControl, FormControl } from '../models';
 import { ControlStateMapper, ControlValueMapper } from './interface';
-import { map } from 'rxjs/operators';
+import { map, filter } from 'rxjs/operators';
 import { NgBaseDirective } from './base.directive';
 import { resolveControlAccessor } from './util';
 import { ControlAccessor, NG_CONTROL_ACCESSOR } from '../accessors';
 
 @Directive({
-  selector: '[ngFormControl]',
+  selector: '[ngFormControl]:not([formControl])',
   exportAs: 'ngForm',
 })
 export class NgFormControlDirective extends NgBaseDirective<AbstractControl>
@@ -58,11 +58,6 @@ export class NgFormControlDirective extends NgBaseDirective<AbstractControl>
   }) {
     if (!this.providedControl) {
       throw new Error(`NgFormControlDirective must be passed a ngFormControl`);
-    } else if (this.stateMapper && this.valueMapper) {
-      throw new Error(
-        `If a ngFormControlStateMapper is provided, you ` +
-          `cannot also provide a ngFormControlValueMapper`,
-      );
     }
 
     this.onChangesSubscriptions.forEach(sub => sub.unsubscribe());
@@ -88,6 +83,31 @@ export class NgFormControlDirective extends NgBaseDirective<AbstractControl>
       this.providedControl.changes
         .pipe(map(this.fromProvidedControlMapFn()))
         .subscribe(this.control.source),
+    );
+
+    if (this.valueMapper && this.valueMapper.accessorValidator) {
+      const validator = this.valueMapper.accessorValidator;
+
+      this.control.setValidators(validator, {
+        source: this.id,
+      });
+
+      this.onChangesSubscriptions.push(
+        this.control.changes
+          .pipe(filter(({ type }) => type === 'validatorStore'))
+          .subscribe(() => {
+            this.control.setValidators(validator, {
+              source: this.id,
+            });
+          }),
+      );
+    } else {
+      this.control.setValidators(null, {
+        source: this.id,
+      });
+    }
+
+    this.onChangesSubscriptions.push(
       this.control.changes
         .pipe(map(this.toProvidedControlMapFn()))
         .subscribe(this.providedControl.source),

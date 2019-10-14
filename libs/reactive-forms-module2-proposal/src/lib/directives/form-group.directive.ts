@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { FormGroup } from '../models';
 import { ControlStateMapper, ControlValueMapper } from './interface';
-import { map } from 'rxjs/operators';
+import { map, filter } from 'rxjs/operators';
 import { NgBaseDirective } from './base.directive';
 import { resolveControlContainerAccessor } from './util';
 import {
@@ -74,11 +74,6 @@ export class NgFormGroupDirective extends NgBaseDirective<FormGroup>
   }) {
     if (!this.providedControl) {
       throw new Error(`NgFormGroupDirective must be passed a ngFormGroup`);
-    } else if (this.stateMapper && this.valueMapper) {
-      throw new Error(
-        `If a ngFormGroupStateMapper is provided, you ` +
-          `cannot also provide a ngFormGroupValueMapper`,
-      );
     }
 
     this.onChangesSubscriptions.forEach(sub => sub.unsubscribe());
@@ -104,6 +99,31 @@ export class NgFormGroupDirective extends NgBaseDirective<FormGroup>
       this.providedControl.changes
         .pipe(map(this.fromProvidedControlMapFn()))
         .subscribe(this.control.source),
+    );
+
+    if (this.valueMapper && this.valueMapper.accessorValidator) {
+      const validator = this.valueMapper.accessorValidator;
+
+      this.control.setValidators(validator, {
+        source: this.id,
+      });
+
+      this.onChangesSubscriptions.push(
+        this.control.changes
+          .pipe(filter(({ type }) => type === 'validatorStore'))
+          .subscribe(() => {
+            this.control.setValidators(validator, {
+              source: this.id,
+            });
+          }),
+      );
+    } else {
+      this.control.setValidators(null, {
+        source: this.id,
+      });
+    }
+
+    this.onChangesSubscriptions.push(
       this.control.changes
         .pipe(map(this.toProvidedControlMapFn()))
         .subscribe(this.providedControl.source),

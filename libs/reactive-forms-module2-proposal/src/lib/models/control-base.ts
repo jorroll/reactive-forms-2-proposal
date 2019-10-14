@@ -15,6 +15,7 @@ import {
   distinctUntilChanged,
   startWith,
   shareReplay,
+  skip,
 } from 'rxjs/operators';
 import { Observable, from } from 'rxjs';
 
@@ -463,6 +464,9 @@ export abstract class ControlBase<
 
     return this.changes.pipe(
       filter(({ noEmit }) => options.ignoreNoEmit || !noEmit),
+      // here we load the current value into the `distinctUntilChanged`
+      // filter (and skip it) so that the first emission is a change.
+      startWith({} as StateChange<string, any>),
       map(() =>
         props.reduce(
           (prev, curr) => {
@@ -476,6 +480,7 @@ export abstract class ControlBase<
         ),
       ),
       distinctUntilChanged(),
+      skip(1),
       share(),
     );
   }
@@ -956,28 +961,24 @@ export abstract class ControlBase<
     };
   }
 
-  protected updateValidation(options?: StateChangeOptions) {
+  protected updateValidation(options: StateChangeOptions = {}) {
     if (this.validator) {
       const value = this.validator(this);
 
       if (value) {
-        this.setErrors(value, options);
+        this.setErrors(value, { ...options, source: this.id });
         return;
       }
     }
 
-    this.setErrors(null, options);
+    this.setErrors(null, { ...options, source: this.id });
   }
 
   private processErrors() {
     return Array.from(this.errorsStore.values()).reduce(
       (prev, curr) => {
-        if (!curr) {
-          return prev;
-        }
-        if (!prev) {
-          return curr;
-        }
+        if (!curr) return prev;
+        if (!prev) return curr;
         return { ...prev, ...curr };
       },
       null as ValidationErrors | null,

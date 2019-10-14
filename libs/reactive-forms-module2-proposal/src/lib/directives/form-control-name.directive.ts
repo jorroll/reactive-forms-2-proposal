@@ -12,8 +12,8 @@ import {
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { AbstractControl, FormControl } from '../models';
-import { ControlStateMapper, ControlValueMapper } from './interface';
-import { map } from 'rxjs/operators';
+import { ControlValueMapper, ControlStateMapper } from './interface';
+import { map, filter } from 'rxjs/operators';
 import { NgBaseDirective } from './base.directive';
 import {
   ControlAccessor,
@@ -72,11 +72,6 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
       throw new Error(
         `NgFormControlNameDirective must be passed a ngFormControlName`,
       );
-    } else if (this.stateMapper && this.valueMapper) {
-      throw new Error(
-        `If a ngFormControlStateMapper is provided, you ` +
-          `cannot also provide a ngFormControlValueMapper`,
-      );
     }
 
     this.cleanupInnerSubs();
@@ -104,6 +99,31 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
               providedControl.changes
                 .pipe(map(this.fromProvidedControlMapFn()))
                 .subscribe(this.control.source),
+            );
+
+            if (this.valueMapper && this.valueMapper.accessorValidator) {
+              const validator = this.valueMapper.accessorValidator;
+
+              this.control.setValidators(validator, {
+                source: this.id,
+              });
+
+              this.innerSubscriptions.push(
+                this.control.changes
+                  .pipe(filter(({ type }) => type === 'validatorStore'))
+                  .subscribe(() => {
+                    this.control.setValidators(validator, {
+                      source: this.id,
+                    });
+                  }),
+              );
+            } else {
+              this.control.setValidators(null, {
+                source: this.id,
+              });
+            }
+
+            this.innerSubscriptions.push(
               this.control.changes
                 .pipe(map(this.toProvidedControlMapFn()))
                 .subscribe(providedControl.source),
