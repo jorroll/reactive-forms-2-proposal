@@ -1,0 +1,12 @@
+{
+  "name": "reactive-forms-module2-proposal",
+  "version": "0.0.1",
+  "peerDependencies": {
+    "@angular/common": "^8.2.0",
+    "@angular/core": "^8.2.0"
+  },
+  "optionalDependencies": {
+    "@angular/forms": "^8.2.0",
+    "lodash-es": "^4.17.15"
+  }
+}

@@ -1,0 +1,44 @@
+<mat-card>
+  <mat-card-title> <a href="#example-3">Example 3</a> </mat-card-title>
+
+  <mat-card-subtitle>
+    dynamically parse a control's text input
+  </mat-card-subtitle>
+
+  <mat-card-content>
+    <p class="body-1">
+      Here, a user is providing text date values and we want a control with
+      javascript `Date` objects.
+    </p>
+
+    <p class="body-1">
+      To accomplish this, you can simply provide a value mapper object
+      containing `fromControl` and `toControl` mapper functions. Optionally, you
+      can also provide a validator for the user text values.
+    </p>
+  </mat-card-content>
+
+  <mat-card-content>
+    <div>
+      <label> controlA </label>
+      <input
+        [ngFormControl]="controlA"
+        [ngFormControlValueMapper]="{
+          fromControl: dateToString,
+          toControl: stringToDate,
+          accessorValidator: dateValidatorFn
+        }"
+      />
+
+      <div *ngIf="controlA.touched && controlA.invalid" class="error">
+        <p>controlA Errors:</p>
+        <p>{{ controlA.errors | json }}</p>
+      </div>
+
+      <div *ngIf="controlA.valid">
+        <p>controlA mapped value:</p>
+        <p>{{ controlA.value && controlA.value.toString() }}</p>
+      </div>
+    </div>
+  </mat-card-content>
+</mat-card>

@@ -1,0 +1,18 @@
+import { Component, OnInit } from '@angular/core';
+import { FormControl } from 'reactive-forms-module2-proposal';
+
+@Component({
+  selector: 'app-example-one',
+  templateUrl: './example-one.component.html',
+  styleUrls: ['./example-one.component.scss'],
+})
+export class ExampleOneComponent implements OnInit {
+  controlA = new FormControl('');
+  controlB = new FormControl('');
+
+  constructor() {}
+
+  ngOnInit() {
+    this.controlA.changes.subscribe(this.controlB.source);
+  }
+}
