@@ -47,7 +47,6 @@ export class FormGroup<
     options: StateChangeOptions = {},
   ) {
     Object.entries(value).forEach(([key, val]) => {
-      console.log('patchValue', key, val, this.controls, this.controls[key]);
       this.controls[key].patchValue(val, options);
     });
   }
@@ -104,17 +103,17 @@ export class FormGroup<
     this._sourceSubscription = merge(
       ...Object.entries(this.controls).map(([key, control]) =>
         concat(control.replayState(), control.changes).pipe(
-          filter(({ type }) =>
-            [
-              'value',
-              'disabled',
-              'readonly',
-              'touched',
-              'pending',
-              'changed',
-              'submitted',
-            ].includes(type),
-          ),
+          // filter(({ type }) =>
+          //   [
+          //     'value',
+          //     'disabled',
+          //     'readonly',
+          //     'touched',
+          //     'pending',
+          //     'changed',
+          //     'submitted',
+          //   ].includes(type),
+          // ),
           map<StateChange<string, any>, StateChange<string, unknown>>(
             ({ applied, type, value, noEmit, meta }) => {
               const shared = {
@@ -189,8 +188,17 @@ export class FormGroup<
                       ),
                   };
                 }
-                default:
-                  throw new Error(`unexpected StateChange type "${type}"`);
+                default: {
+                  // We emit this noop state change so that
+                  // `observe()` calls focused on nested children properties
+                  // emit properly
+                  return {
+                    source: this.id,
+                    applied,
+                    type: 'ChildStateChange',
+                    value: undefined,
+                  };
+                }
               }
             },
           ),

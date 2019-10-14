@@ -186,17 +186,6 @@ export abstract class ControlBase<
     return this._validator;
   }
 
-  // asyncValidatorStore: ReadonlyMap<ControlId, AsyncValidatorFn> = new Map<
-  //   ControlId,
-  //   AsyncValidatorFn
-  // >();
-
-  // protected _asyncValidatorStoreDefault: ReadonlyMap<ControlId, AsyncValidatorFn>;
-  // protected _asyncValidator: AsyncValidatorFn | null = null;
-  // get asyncValidator() {
-  //   return this._asyncValidator;
-  // }
-
   constructor(value?: Value, options: IControlBaseArgs<Value, Data> = {}) {
     super();
     if (options.id) this.id = options.id;

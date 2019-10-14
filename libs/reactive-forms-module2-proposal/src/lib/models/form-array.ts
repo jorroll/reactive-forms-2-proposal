@@ -156,17 +156,17 @@ export class FormArray<
     this._sourceSubscription = merge(
       ...this.controls.map((control, index) =>
         control.changes.pipe(
-          filter(({ type }) =>
-            [
-              'value',
-              'disabled',
-              'readonly',
-              'touched',
-              'pending',
-              'changed',
-              'submitted',
-            ].includes(type),
-          ),
+          // filter(({ type }) =>
+          //   [
+          //     'value',
+          //     'disabled',
+          //     'readonly',
+          //     'touched',
+          //     'pending',
+          //     'changed',
+          //     'submitted',
+          //   ].includes(type),
+          // ),
           map<StateChange<string, any>, StateChange<string, unknown>>(
             ({ applied, type, value, noEmit, meta }) => {
               const shared = {
@@ -226,8 +226,17 @@ export class FormArray<
                     value: value && this.controls.every(ctrl => ctrl.readonly),
                   };
                 }
-                default:
-                  throw new Error(`unexpected StateChange type "${type}"`);
+                default: {
+                  // We emit this noop state change so that
+                  // `observe()` calls focused on nested children properties
+                  // emit properly
+                  return {
+                    source: this.id,
+                    applied,
+                    type: 'ChildStateChange',
+                    value: undefined,
+                  };
+                }
               }
             },
           ),
