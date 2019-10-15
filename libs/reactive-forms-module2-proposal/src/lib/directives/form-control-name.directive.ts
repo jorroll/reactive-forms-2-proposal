@@ -80,7 +80,7 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
 
     this.onChangesSubscriptions.push(
       this.containerAccessor.control
-        .observe('controls', this.controlName)
+        .observe('controls', this.controlName, { ignoreNoEmit: true })
         .subscribe((providedControl: AbstractControl) => {
           this.cleanupInnerSubs();
 
