@@ -66,9 +66,6 @@ export abstract class AbstractControl<Value = any, Data = any> {
 
   abstract data: Data;
 
-  // controls?: any;
-  // controlKeys?: any;
-
   /**
    * **Warning!** Do not use this property unless you know what you are doing.
    *
