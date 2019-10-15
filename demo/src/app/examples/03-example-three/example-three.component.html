@@ -30,7 +30,7 @@
         }"
       />
 
-      <div *ngIf="controlA.touched && controlA.invalid" class="error">
+      <div *ngIf="controlA.changed && controlA.invalid" class="error">
         <p>controlA Errors:</p>
         <p>{{ controlA.errors | json }}</p>
       </div>

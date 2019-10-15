@@ -16,7 +16,7 @@ export function watchProp<T extends AbstractControl>(
   control: T,
   prop: keyof T,
 ) {
-  return control.changes.pipe(
+  return control.events.pipe(
     filter(({ type }) => type === prop),
     startWith(null),
     map(() => control[prop]),

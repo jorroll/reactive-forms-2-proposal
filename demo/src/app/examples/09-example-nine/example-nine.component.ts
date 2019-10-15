@@ -9,7 +9,7 @@ import { filter } from 'rxjs/operators';
 })
 export class ExampleNineComponent implements OnInit {
   controlA = new FormControl('');
-  values$ = this.controlA.changes.pipe(filter(state => state.type === 'value'));
+  values$ = this.controlA.events.pipe(filter(state => state.type === 'value'));
 
   constructor() {}
 

@@ -18,7 +18,7 @@
       <label> usernameControl </label>
       <input [ngFormControl]="usernameControl" />
 
-      <div *ngIf="usernameControl.invalid" class="error">
+      <div *ngIf="usernameControl.status === 'INVALID'" class="error">
         <p>usernameControl Errors:</p>
         <p>{{ usernameControl.errors | json }}</p>
       </div>

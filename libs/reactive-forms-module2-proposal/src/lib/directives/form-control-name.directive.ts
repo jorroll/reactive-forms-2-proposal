@@ -57,9 +57,14 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
     this.subscriptions.push(
       this.accessor.control
         .replayState({ includeDefaults: true })
+        .pipe(filter(({ type }) => type !== 'validation'))
         .subscribe(this.control.source),
-      this.accessor.control.changes.subscribe(this.control.source),
-      this.control.changes.subscribe(this.accessor.control.source),
+      this.accessor.control.events
+        .pipe(filter(({ type }) => type !== 'validation'))
+        .subscribe(this.control.source),
+      this.control.events
+        .pipe(filter(({ type }) => type !== 'validation'))
+        .subscribe(this.accessor.control.source),
     );
   }
 
@@ -85,7 +90,7 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
           this.cleanupInnerSubs();
 
           if (providedControl) {
-            this.control.stateChange({
+            this.control.emitEvent({
               source: this.id,
               type: 'ControlAccessor',
               value: 'PreInit',
@@ -94,42 +99,60 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
             this.innerSubscriptions.push(
               providedControl
                 .replayState({ includeDefaults: true })
-                .pipe(map(this.fromProvidedControlMapFn()))
+                .pipe(
+                  filter(({ type }) => type !== 'validation'),
+                  map(this.fromProvidedControlMapFn()),
+                )
                 .subscribe(this.control.source),
-              providedControl.changes
-                .pipe(map(this.fromProvidedControlMapFn()))
+              providedControl.events
+                .pipe(
+                  filter(({ type }) => type !== 'validation'),
+                  map(this.fromProvidedControlMapFn()),
+                )
                 .subscribe(this.control.source),
             );
 
             if (this.valueMapper && this.valueMapper.accessorValidator) {
               const validator = this.valueMapper.accessorValidator;
 
-              this.control.setValidators(validator, {
+              this.control.setErrors(validator(this.control), {
                 source: this.id,
               });
 
-              this.innerSubscriptions.push(
-                this.control.changes
-                  .pipe(filter(({ type }) => type === 'validatorStore'))
+              // validate the control via a service to avoid the possibility
+              // of the user somehow deleting our validator function.
+              this.onChangesSubscriptions.push(
+                this.control.events
+                  .pipe(
+                    filter(
+                      ({ type, value, source }) =>
+                        type === 'validation' &&
+                        value === 'internalEnd' &&
+                        source === this.control.id,
+                    ),
+                  )
                   .subscribe(() => {
-                    this.control.setValidators(validator, {
+                    this.control.setErrors(validator(this.control), {
                       source: this.id,
                     });
                   }),
               );
             } else {
-              this.control.setValidators(null, {
+              this.control.setErrors(null, {
                 source: this.id,
               });
             }
 
             this.innerSubscriptions.push(
-              this.control.changes
-                .pipe(map(this.toProvidedControlMapFn()))
+              this.control.events
+                .pipe(
+                  filter(({ type }) => type !== 'validation'),
+                  map(this.toProvidedControlMapFn()),
+                )
                 .subscribe(providedControl.source),
             );
 
-            this.control.stateChange({
+            this.control.emitEvent({
               source: this.id,
               type: 'ControlAccessor',
               value: 'PostInit',
@@ -148,7 +171,7 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
   private cleanupInnerSubs() {
     this.innerSubscriptions.forEach(sub => sub.unsubscribe());
 
-    this.control.stateChange({
+    this.control.emitEvent({
       source: this.id,
       type: 'ControlAccessor',
       value: 'Cleanup',

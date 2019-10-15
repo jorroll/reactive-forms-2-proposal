@@ -1,8 +1,8 @@
-import { StateChange, ValidatorFn } from '../models';
+import { ControlEvent, ValidatorFn } from '../models';
 
 export interface ControlStateMapper {
-  fromControl: (state: StateChange<string, any>) => StateChange<string, any>;
-  toControl: (state: StateChange<string, any>) => StateChange<string, any>;
+  fromControl: (state: ControlEvent<string, any>) => ControlEvent<string, any>;
+  toControl: (state: ControlEvent<string, any>) => ControlEvent<string, any>;
 }
 
 export interface ControlValueMapper<ControlValue = any, NewValue = any> {

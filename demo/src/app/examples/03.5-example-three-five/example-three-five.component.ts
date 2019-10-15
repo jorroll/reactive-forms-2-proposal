@@ -77,7 +77,7 @@ export class ExampleThreeFiveComponent implements OnInit {
     //   and before then filtering out the `StateChange` because the `inputControl` has already
     //   processed it.
 
-    this.inputControl.changes
+    this.inputControl.events
       .pipe(
         map(state => {
           switch (state.type) {
@@ -94,7 +94,7 @@ export class ExampleThreeFiveComponent implements OnInit {
       )
       .subscribe(this.dateControl.source);
 
-    this.dateControl.changes
+    this.dateControl.events
       .pipe(
         map(state => {
           switch (state.type) {

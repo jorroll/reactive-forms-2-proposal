@@ -4,8 +4,8 @@ import {
   ValidatorFn,
   ValidationErrors,
   ControlSource,
-  StateChange,
-  StateChangeOptions,
+  ControlEvent,
+  ControlEventOptions,
 } from './abstract-control';
 import {
   filter,
@@ -39,6 +39,10 @@ export interface IControlBaseArgs<Value = any, Data = any> {
   id?: ControlId;
 }
 
+export type OutputControlEvent = Observable<
+  Omit<ControlEvent<string, any>, 'stateChange'> & { stateChange: boolean }
+>;
+
 export function composeValidators(
   validators: undefined | null | ValidatorFn | ValidatorFn[],
 ): null | ValidatorFn {
@@ -63,26 +67,27 @@ export abstract class ControlBase<
 > extends AbstractControl<Value, Data> {
   data: Data;
 
-  source = new ControlSource<StateChange<string, any>>();
+  source = new ControlSource<ControlEvent<string, any>>();
 
-  changes = this.source.pipe(
+  events = (this.source.pipe(
     filter(
       // make sure we don't process an event we already processed
-      state => !state.applied.includes(this.id),
+      event => !event.applied.includes(this.id),
     ),
-    tap(state => {
+    tap(event => {
       // Add our ID to the `applied` array to indicate that this control
-      // has already processed this state change and doesn't need to
+      // has already processed this event and doesn't need to
       // do so again.
       //
-      // It's important that we `push()` the new change in to keep the same
+      // It's important that we `push()` the new ID in to keep the same
       // array reference
-      state.applied.push(this.id);
+      event.applied.push(this.id);
 
-      this.processState(state);
+      // processEvent adds the `stateChange` property
+      this.processEvent(event);
     }),
     share(),
-  );
+  ) as any) as Observable<ControlEvent<string, any> & { stateChange: boolean }>;
 
   protected _valueDefault?: Value;
   protected _value: Value;
@@ -136,7 +141,7 @@ export abstract class ControlBase<
 
   focusChanges: Observable<
     { [key: string]: any } | undefined
-  > = this.changes.pipe(
+  > = this.events.pipe(
     filter(({ type, noEmit }) => type === 'focus' && !noEmit),
     map(state => state.meta),
     share(),
@@ -194,7 +199,7 @@ export abstract class ControlBase<
 
     // need to maintain one subscription for the
     // observable to fire and the logic to process
-    this.changes.subscribe();
+    this.events.subscribe();
 
     this._disabledDefault = !!options.disabled;
     this._disabled = this._disabledDefault;
@@ -242,7 +247,7 @@ export abstract class ControlBase<
       Array.from(this.validatorStore.values()),
     );
 
-    this.updateValidation({});
+    this.updateValidation();
   }
 
   observeChanges<A extends keyof this>(
@@ -451,11 +456,14 @@ export abstract class ControlBase<
 
     props.push(...(args as string[]));
 
-    return this.changes.pipe(
-      filter(({ noEmit }) => options.ignoreNoEmit || !noEmit),
+    return this.events.pipe(
+      filter(
+        ({ noEmit, stateChange }) =>
+          stateChange && (options.ignoreNoEmit || !noEmit),
+      ),
       // here we load the current value into the `distinctUntilChanged`
       // filter (and skip it) so that the first emission is a change.
-      startWith({} as StateChange<string, any>),
+      startWith({} as ControlEvent<string, any>),
       map(() =>
         props.reduce(
           (prev, curr) => {
@@ -680,9 +688,12 @@ export abstract class ControlBase<
 
     props.push(...(args as string[]));
 
-    return this.changes.pipe(
-      startWith({} as StateChange<string, any>),
-      filter(({ noEmit }) => options.ignoreNoEmit || !noEmit),
+    return this.events.pipe(
+      filter(
+        ({ noEmit, stateChange }) =>
+          stateChange && (options.ignoreNoEmit || !noEmit),
+      ),
+      startWith({} as ControlEvent<string, any>),
       map(() =>
         props.reduce(
           (prev, curr) => {
@@ -700,20 +711,20 @@ export abstract class ControlBase<
     );
   }
 
-  setValue(value: Value, options?: StateChangeOptions) {
-    this.source.next(this.buildStateChange('value', value, options));
+  setValue(value: Value, options?: ControlEventOptions) {
+    this.source.next(this.buildEvent('value', value, options));
   }
 
-  patchValue(value: any, options?: StateChangeOptions) {
+  patchValue(value: any, options?: ControlEventOptions) {
     this.setValue(value, options);
   }
 
   setErrors(
     value: ValidationErrors | null | ReadonlyMap<ControlId, ValidationErrors>,
-    options: StateChangeOptions = {},
+    options: ControlEventOptions = {},
   ) {
     if (value instanceof Map) {
-      this.source.next(this.buildStateChange('errorsStore', value, options));
+      this.source.next(this.buildEvent('errorsStore', value, options));
     } else {
       const source = options.source || this.id;
 
@@ -730,7 +741,7 @@ export abstract class ControlBase<
 
   patchErrors(
     value: ValidationErrors | ReadonlyMap<ControlId, ValidationErrors>,
-    options: StateChangeOptions = {},
+    options: ControlEventOptions = {},
   ) {
     if (value instanceof Map) {
       const newValue = new Map([
@@ -738,7 +749,7 @@ export abstract class ControlBase<
         ...value.entries(),
       ]);
 
-      this.source.next(this.buildStateChange('errorsStore', newValue, options));
+      this.source.next(this.buildEvent('errorsStore', newValue, options));
     } else {
       const source = options.source || this.id;
 
@@ -773,36 +784,36 @@ export abstract class ControlBase<
     }
   }
 
-  markTouched(value: boolean, options?: StateChangeOptions) {
+  markTouched(value: boolean, options?: ControlEventOptions) {
     if (value !== this._touched) {
-      this.source.next(this.buildStateChange('touched', value, options));
+      this.source.next(this.buildEvent('touched', value, options));
     }
   }
 
-  markChanged(value: boolean, options?: StateChangeOptions) {
+  markChanged(value: boolean, options?: ControlEventOptions) {
     if (value !== this._changed) {
-      this.source.next(this.buildStateChange('changed', value, options));
+      this.source.next(this.buildEvent('changed', value, options));
     }
   }
 
-  markReadonly(value: boolean, options?: StateChangeOptions) {
+  markReadonly(value: boolean, options?: ControlEventOptions) {
     if (value !== this._readonly) {
-      this.source.next(this.buildStateChange('readonly', value, options));
+      this.source.next(this.buildEvent('readonly', value, options));
     }
   }
 
-  markSubmitted(value: boolean, options?: StateChangeOptions) {
+  markSubmitted(value: boolean, options?: ControlEventOptions) {
     if (value !== this._submitted) {
-      this.source.next(this.buildStateChange('submitted', value, options));
+      this.source.next(this.buildEvent('submitted', value, options));
     }
   }
 
   markPending(
     value: boolean | ReadonlyMap<ControlId, true>,
-    options: StateChangeOptions = {},
+    options: ControlEventOptions = {},
   ) {
     this.source.next(
-      this.buildStateChange(
+      this.buildEvent(
         value instanceof Map ? 'pendingStore' : 'pending',
         value,
         options,
@@ -810,35 +821,31 @@ export abstract class ControlBase<
     );
   }
 
-  markDisabled(value: boolean, options?: StateChangeOptions) {
+  markDisabled(value: boolean, options?: ControlEventOptions) {
     if (value !== this._disabled) {
-      this.source.next(this.buildStateChange('disabled', value, options));
+      this.source.next(this.buildEvent('disabled', value, options));
     }
   }
 
-  focus(options?: StateChangeOptions) {
-    this.source.next(this.buildStateChange('focus', undefined, options));
+  focus(options?: ControlEventOptions) {
+    this.source.next(this.buildEvent('focus', undefined, options));
   }
 
-  reset(options?: StateChangeOptions & { asObservable?: false }): void;
+  reset(options?: ControlEventOptions & { asObservable?: false }): void;
   reset(
-    options: StateChangeOptions & { asObservable: true },
-  ): Observable<StateChange<string, any>>;
-  reset(options: StateChangeOptions & { asObservable?: boolean } = {}) {
-    const state: StateChange<string, any>[] = [
-      this.buildStateChange('touched', this._touchedDefault, options),
-      this.buildStateChange('changed', this._changedDefault, options),
-      this.buildStateChange('readonly', this._readonlyDefault, options),
-      this.buildStateChange('submitted', this._submittedDefault, options),
-      this.buildStateChange('disabled', this._disabledDefault, options),
-      this.buildStateChange('pendingStore', this._pendingStoreDefault, options),
-      this.buildStateChange(
-        'validatorStore',
-        this._validatorStoreDefault,
-        options,
-      ),
-      this.buildStateChange('value', this._valueDefault, options),
-      this.buildStateChange('resetComplete', undefined, options),
+    options: ControlEventOptions & { asObservable: true },
+  ): Observable<ControlEvent<string, any>>;
+  reset(options: ControlEventOptions & { asObservable?: boolean } = {}) {
+    const state: ControlEvent<string, any>[] = [
+      this.buildEvent('touched', this._touchedDefault, options),
+      this.buildEvent('changed', this._changedDefault, options),
+      this.buildEvent('readonly', this._readonlyDefault, options),
+      this.buildEvent('submitted', this._submittedDefault, options),
+      this.buildEvent('disabled', this._disabledDefault, options),
+      this.buildEvent('pendingStore', this._pendingStoreDefault, options),
+      this.buildEvent('validatorStore', this._validatorStoreDefault, options),
+      this.buildEvent('value', this._valueDefault, options),
+      this.buildEvent('resetComplete', undefined, options),
     ];
 
     const observable = from(state).pipe(
@@ -861,10 +868,10 @@ export abstract class ControlBase<
       | ValidatorFn[]
       | ReadonlyMap<ControlId, ValidatorFn>
       | null,
-    options: StateChangeOptions = {},
+    options: ControlEventOptions = {},
   ) {
     this.source.next(
-      this.buildStateChange(
+      this.buildEvent(
         value instanceof Map ? 'validatorStore' : 'validators',
         value,
         options,
@@ -873,54 +880,42 @@ export abstract class ControlBase<
   }
 
   replayState(
-    options: StateChangeOptions & { includeDefaults?: boolean } = {},
+    options: ControlEventOptions & { includeDefaults?: boolean } = {},
   ) {
-    const state: StateChange<string, any>[] = [
-      this.buildStateChange('touched', this.touched, options),
-      this.buildStateChange('changed', this.changed, options),
-      this.buildStateChange('readonly', this.readonly, options),
-      this.buildStateChange('submitted', this.submitted, options),
-      this.buildStateChange('disabled', this.disabled, options),
-      this.buildStateChange('pendingStore', this.pendingStore, options),
-      this.buildStateChange('validatorStore', this.validatorStore, options),
-      this.buildStateChange('errorsStore', this.errorsStore, options),
+    const state: ControlEvent<string, any>[] = [
+      this.buildEvent('touched', this.touched, options),
+      this.buildEvent('changed', this.changed, options),
+      this.buildEvent('readonly', this.readonly, options),
+      this.buildEvent('submitted', this.submitted, options),
+      this.buildEvent('disabled', this.disabled, options),
+      this.buildEvent('pendingStore', this.pendingStore, options),
+      this.buildEvent('validatorStore', this.validatorStore, options),
+      this.buildEvent('errorsStore', this.errorsStore, options),
     ];
 
     if (options.includeDefaults) {
       state.push(
-        this.buildStateChange('touchedDefault', this._touchedDefault, options),
-        this.buildStateChange('changedDefault', this._changedDefault, options),
-        this.buildStateChange(
-          'readonlyDefault',
-          this._readonlyDefault,
-          options,
-        ),
-        this.buildStateChange(
-          'submittedDefault',
-          this._submittedDefault,
-          options,
-        ),
-        this.buildStateChange(
-          'disabledDefault',
-          this._disabledDefault,
-          options,
-        ),
-        this.buildStateChange(
+        this.buildEvent('touchedDefault', this._touchedDefault, options),
+        this.buildEvent('changedDefault', this._changedDefault, options),
+        this.buildEvent('readonlyDefault', this._readonlyDefault, options),
+        this.buildEvent('submittedDefault', this._submittedDefault, options),
+        this.buildEvent('disabledDefault', this._disabledDefault, options),
+        this.buildEvent(
           'pendingStoreDefault',
           this._pendingStoreDefault,
           options,
         ),
-        this.buildStateChange(
+        this.buildEvent(
           'validatorStoreDefault',
           this._validatorStoreDefault,
           options,
         ),
         // this.buildStateChange('asyncValidatorStoreDefault', this._asyncValidatorStoreDefault, options),
-        this.buildStateChange('valueDefault', this._valueDefault, options),
+        this.buildEvent('valueDefault', this._valueDefault, options),
       );
     }
 
-    state.push(this.buildStateChange('value', this.value, options));
+    state.push(this.buildEvent('value', this.value, options));
 
     return from(state).pipe(
       map(state => {
@@ -933,12 +928,12 @@ export abstract class ControlBase<
     );
   }
 
-  protected buildStateChange<T extends string, V>(
+  protected buildEvent<T extends string, V>(
     type: T,
     value: V,
-    { noEmit, meta, source }: StateChangeOptions = {},
+    { noEmit, meta, source }: ControlEventOptions = {},
     custom: { [key: string]: any } = {},
-  ): StateChange<T, V> {
+  ): ControlEvent<T, V> {
     return {
       source: source || this.id,
       applied: [],
@@ -950,17 +945,41 @@ export abstract class ControlBase<
     };
   }
 
-  protected updateValidation(options: StateChangeOptions = {}) {
-    if (this.validator) {
-      const value = this.validator(this);
+  protected updateValidation({ noEmit, meta }: ControlEventOptions = {}) {
+    // Validation lifecycle hook
+    this.emitEvent({
+      type: 'validation',
+      value: 'internalStart',
+      controlValue: this.value,
+      noEmit,
+      meta,
+    });
 
-      if (value) {
-        this.setErrors(value, { ...options, source: this.id });
-        return;
-      }
-    }
+    const validationResult: (Readonly<ValidationErrors>) | null = this.validator
+      ? this.validator(this)
+      : null;
 
-    this.setErrors(null, { ...options, source: this.id });
+    this.setErrors(validationResult, { noEmit, meta });
+
+    // Validation lifecycle hook
+    this.emitEvent({
+      type: 'validation',
+      value: 'internalEnd',
+      controlValue: this.value,
+      validationResult,
+      noEmit,
+      meta,
+    });
+
+    // Validation lifecycle hook
+    this.emitEvent({
+      type: 'validation',
+      value: 'end',
+      controlValue: this.value,
+      controlValid: this.valid,
+      noEmit,
+      meta,
+    });
   }
 
   private processErrors() {
@@ -974,27 +993,36 @@ export abstract class ControlBase<
     );
   }
 
-  protected processState(state: StateChange<string, any>) {
-    switch (state.type) {
+  /**
+   * Processes a control event. If the event is recognized by this control,
+   * `processEvent()` will return `true`. Otherwise, `false` is returned.
+   */
+  protected processEvent(
+    event: ControlEvent<string, any> & { stateChange?: boolean },
+  ) {
+    switch (event.type) {
       case 'value': {
-        this._value = state.value;
-        this.updateValidation(state);
+        event.stateChange = true;
+        this._value = event.value;
+        this.updateValidation(event);
 
         return true;
       }
       case 'valueDefault': {
-        this._valueDefault = state.value;
+        event.stateChange = true;
+        this._valueDefault = event.value;
         return true;
       }
       case 'errors': {
-        if (state.value && Object.entries(state.value).length !== 0) {
+        event.stateChange = true;
+        if (event.value && Object.entries(event.value).length !== 0) {
           (this.errorsStore as Map<ControlId, ValidationErrors>).set(
-            state.source,
-            state.value,
+            event.source,
+            event.value,
           );
         } else {
           (this.errorsStore as Map<ControlId, ValidationErrors>).delete(
-            state.source,
+            event.source,
           );
         }
 
@@ -1003,57 +1031,69 @@ export abstract class ControlBase<
         return true;
       }
       case 'errorsStore': {
-        this.errorsStore = new Map(state.value);
+        event.stateChange = true;
+        this.errorsStore = new Map(event.value);
 
         this._errors = this.processErrors();
 
         return true;
       }
       case 'submitted': {
-        this._submitted = state.value;
+        event.stateChange = true;
+        this._submitted = event.value;
         return true;
       }
       case 'submittedDefault': {
-        this._submittedDefault = state.value;
+        event.stateChange = true;
+        this._submittedDefault = event.value;
         return true;
       }
       case 'touched': {
-        this._touched = state.value;
+        event.stateChange = true;
+        this._touched = event.value;
         return true;
       }
       case 'touchedDefault': {
-        this._touchedDefault = state.value;
+        event.stateChange = true;
+        this._touchedDefault = event.value;
         return true;
       }
       case 'changed': {
-        this._changed = state.value;
+        event.stateChange = true;
+        this._changed = event.value;
         return true;
       }
       case 'changedDefault': {
-        this._changedDefault = state.value;
+        event.stateChange = true;
+        this._changedDefault = event.value;
         return true;
       }
       case 'readonly': {
-        this._readonly = state.value;
+        event.stateChange = true;
+        this._readonly = event.value;
         return true;
       }
       case 'readonlyDefault': {
-        this._readonlyDefault = state.value;
+        event.stateChange = true;
+        this._readonlyDefault = event.value;
         return true;
       }
       case 'disabled': {
-        this._disabled = state.value;
+        event.stateChange = true;
+        this._disabled = event.value;
         return true;
       }
       case 'disabledDefault': {
-        this._disabledDefault = state.value;
+        event.stateChange = true;
+        this._disabledDefault = event.value;
         return true;
       }
       case 'pending': {
-        if (state.value) {
-          (this.pendingStore as Map<ControlId, true>).set(state.source, true);
+        event.stateChange = true;
+        if (event.value) {
+          (this.pendingStore as Map<ControlId, true>).set(event.source, true);
         } else {
-          (this.pendingStore as Map<ControlId, true>).delete(state.source);
+          (this.pendingStore as Map<ControlId, true>).delete(event.source);
         }
 
         this._pending = Array.from(this.pendingStore.values()).some(val => val);
@@ -1061,25 +1101,28 @@ export abstract class ControlBase<
         return true;
       }
       case 'pendingStore': {
-        this.pendingStore = new Map(state.value);
+        event.stateChange = true;
+        this.pendingStore = new Map(event.value);
 
         this._pending = Array.from(this.pendingStore.values()).some(val => val);
 
         return true;
       }
       case 'pendingStoreDefault': {
-        this._pendingStoreDefault = new Map(state.value);
+        event.stateChange = true;
+        this._pendingStoreDefault = new Map(event.value);
         return true;
       }
       case 'validators': {
-        if (state.value === null) {
+        event.stateChange = true;
+        if (event.value === null) {
           (this.validatorStore as Map<ControlId, ValidatorFn>).delete(
-            state.source,
+            event.source,
           );
         } else {
           (this.validatorStore as Map<ControlId, ValidatorFn>).set(
-            state.source,
-            composeValidators(state.value)!,
+            event.source,
+            composeValidators(event.value)!,
           );
         }
 
@@ -1087,25 +1130,28 @@ export abstract class ControlBase<
           Array.from(this.validatorStore.values()),
         );
 
-        this.updateValidation(state);
+        this.updateValidation(event);
         return true;
       }
       case 'validatorStore': {
-        this.validatorStore = new Map(state.value);
+        event.stateChange = true;
+        this.validatorStore = new Map(event.value);
 
         this._validator = composeValidators(
           Array.from(this.validatorStore.values()),
         );
 
-        this.updateValidation(state);
+        this.updateValidation(event);
         return true;
       }
       case 'validatorStoreDefault': {
-        this._validatorStoreDefault = new Map(state.value);
+        event.stateChange = true;
+        this._validatorStoreDefault = new Map(event.value);
         return true;
       }
     }
 
+    event.stateChange = false;
     return false;
   }
 }

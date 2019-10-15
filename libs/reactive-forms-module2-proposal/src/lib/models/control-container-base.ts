@@ -3,8 +3,8 @@ import { FormControl as _FormControl } from '@angular/forms';
 import { map } from 'rxjs/operators';
 import {
   AbstractControl,
-  StateChange,
-  StateChangeOptions,
+  ControlEvent,
+  ControlEventOptions,
 } from './abstract-control';
 import { ControlContainer } from './control-container';
 import { ControlBase, IControlBaseArgs } from './control-base';
@@ -44,7 +44,7 @@ export abstract class ControlContainerBase<C, V, D> extends ControlBase<V, D>
     );
   }
 
-  setValue(value: V, options: StateChangeOptions = {}) {
+  setValue(value: V, options: ControlEventOptions = {}) {
     this.validateValueShape(value);
 
     super.setValue(value, options);
@@ -56,18 +56,18 @@ export abstract class ControlContainerBase<C, V, D> extends ControlBase<V, D>
 
   abstract removeControl(...args: any[]): void;
 
-  abstract markAllTouched(value: boolean, options?: StateChangeOptions): void;
+  abstract markAllTouched(value: boolean, options?: ControlEventOptions): void;
 
   replayState(
-    options: StateChangeOptions & { includeDefaults?: boolean } = {},
+    options: ControlEventOptions & { includeDefaults?: boolean } = {},
   ) {
-    const state: StateChange<string, any>[] = [
-      this.buildStateChange('controls', this.controls, options),
+    const state: ControlEvent<string, any>[] = [
+      this.buildEvent('controls', this.controls, options),
     ];
 
     if (options.includeDefaults) {
       state.push(
-        this.buildStateChange(
+        this.buildEvent(
           'controlsDefault',
           this._controlsDefault,
           options,

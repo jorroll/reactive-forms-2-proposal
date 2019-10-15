@@ -1,8 +1,8 @@
 import { merge } from 'rxjs';
 import {
   AbstractControl,
-  StateChange,
-  StateChangeOptions,
+  ControlEvent,
+  ControlEventOptions,
 } from './abstract-control';
 import { filter, map } from 'rxjs/operators';
 import { IControlBaseArgs } from './control-base';
@@ -78,7 +78,7 @@ export class FormArray<
 
   patchValue(
     value: Partial<FormArrayValue<T>>,
-    options: StateChangeOptions = {},
+    options: ControlEventOptions = {},
   ) {
     if (!Array.isArray(value)) {
       throw new Error(
@@ -94,7 +94,7 @@ export class FormArray<
   setControl<N extends Indices<T>>(
     index: N,
     control: T[N] | null,
-    options: StateChangeOptions = {},
+    options: ControlEventOptions = {},
   ) {
     if (index > this.controls.length) {
       throw new Error(
@@ -111,21 +111,21 @@ export class FormArray<
 
     value.splice(index, 1);
 
-    this.source.next(this.buildStateChange('controls', value, options));
+    this.source.next(this.buildEvent('controls', value, options));
   }
 
   addControl(
     control: ArrayValue<FormArrayValue<T>>,
-    options: StateChangeOptions = {},
+    options: ControlEventOptions = {},
   ) {
     const value = [...this._controls, control];
 
-    this.source.next(this.buildStateChange('controls', value, options));
+    this.source.next(this.buildEvent('controls', value, options));
   }
 
   removeControl<N extends Indices<T>>(
     control: N | ArrayValue<FormArrayValue<T>>,
-    options: StateChangeOptions = {},
+    options: ControlEventOptions = {},
   ) {
     let value: T;
 
@@ -139,10 +139,10 @@ export class FormArray<
       value = this.controls.filter((_, index) => index !== control) as any;
     }
 
-    this.source.next(this.buildStateChange('controls', value, options));
+    this.source.next(this.buildEvent('controls', value, options));
   }
 
-  markAllTouched(value: boolean, options: StateChangeOptions = {}) {
+  markAllTouched(value: boolean, options: ControlEventOptions = {}) {
     this.controls.forEach(control => {
       control.markTouched(value, options);
     });
@@ -155,19 +155,9 @@ export class FormArray<
 
     this._sourceSubscription = merge(
       ...this.controls.map((control, index) =>
-        control.changes.pipe(
-          // filter(({ type }) =>
-          //   [
-          //     'value',
-          //     'disabled',
-          //     'readonly',
-          //     'touched',
-          //     'pending',
-          //     'changed',
-          //     'submitted',
-          //   ].includes(type),
-          // ),
-          map<StateChange<string, any>, StateChange<string, unknown>>(
+        control.events.pipe(
+          filter(({ stateChange }) => stateChange),
+          map<ControlEvent<string, any>, ControlEvent<string, unknown>>(
             ({ applied, type, value, noEmit, meta }) => {
               const shared = {
                 source: this.id,
@@ -233,7 +223,7 @@ export class FormArray<
                   return {
                     source: this.id,
                     applied,
-                    type: 'ChildStateChange',
+                    type: 'childStateChange',
                     value: undefined,
                   };
                 }
@@ -261,58 +251,60 @@ export class FormArray<
     }
   }
 
-  protected processState(state: StateChange<string, any>) {
-    switch (state.type) {
+  protected processEvent(event: ControlEvent<string, any>) {
+    switch (event.type) {
       case 'value': {
-        if (!state.skipShapeValidation) {
-          this.validateValueShape(state.value);
+        event.stateChange = true;
+        if (!event.skipShapeValidation) {
+          this.validateValueShape(event.value);
         }
 
-        if (!state.skipControls) {
-          state.value.forEach((value: any, index: number) => {
-            this.controls[index].setValue(value, state);
+        if (!event.skipControls) {
+          event.value.forEach((value: any, index: number) => {
+            this.controls[index].setValue(value, event);
           });
         }
 
         // We extract the value from the controls in case the controls
         // themselves change the value
         this._value = extractValue<T>(this.controls || []);
-        this.updateValidation(state);
+        this.updateValidation(event);
 
         return true;
       }
       case 'controls': {
-        if (!Array.isArray(state.value)) {
+        event.stateChange = true;
+        if (!Array.isArray(event.value)) {
           throw new Error(
             'FormArray#controls must be an array of AbstractControl',
           );
         }
 
-        this._controls = (state.value.slice() as unknown) as T;
+        this._controls = (event.value.slice() as unknown) as T;
 
         this.setupSource();
 
         this.source.next(
-          this.buildStateChange(
-            'value',
-            extractValue<T>(this.controls),
-            state,
-            {
-              skipControls: true,
-              skipShapeValidation: true,
-            },
-          ),
+          this.buildEvent('value', extractValue<T>(this.controls), event, {
+            skipControls: true,
+            skipShapeValidation: true,
+          }),
         );
 
         return true;
       }
       case 'controlsDefault': {
-        this._controlsDefault = ([...state.value] as unknown) as T;
+        event.stateChange = true;
+        this._controlsDefault = ([...event.value] as unknown) as T;
+        return true;
+      }
+      case 'childStateChange': {
+        event.stateChange = true;
         return true;
       }
     }
 
-    return super.processState(state);
+    return super.processEvent(event);
   }
 }
 

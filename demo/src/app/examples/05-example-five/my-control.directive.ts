@@ -57,7 +57,7 @@ export class MyControlDirective implements OnChanges {
     // If the `validatorStore` of the control is ever reset,
     // re-add these validators
     this.subscriptions.push(
-      this.control.changes
+      this.control.events
         .pipe(filter(({ type }) => type === 'validatorStore'))
         .subscribe(() => {
           this.control.setValidators(this.validators, {

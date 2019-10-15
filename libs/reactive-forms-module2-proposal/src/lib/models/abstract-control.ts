@@ -17,7 +17,7 @@ export type AbstractControlData<T> = T extends AbstractControl<any, infer D>
 
 export type ControlId = string | symbol;
 
-export interface StateChange<Type extends string, Value> {
+export interface ControlEvent<Type extends string, Value> {
   source: ControlId;
   readonly applied: ControlId[];
   type: Type;
@@ -27,7 +27,7 @@ export interface StateChange<Type extends string, Value> {
   [key: string]: any;
 }
 
-export interface StateChangeOptions {
+export interface ControlEventOptions {
   noEmit?: boolean;
   meta?: { [key: string]: any };
   source?: ControlId;
@@ -74,13 +74,15 @@ export abstract class AbstractControl<Value = any, Data = any> {
    * this control's source, you can programmatically control every aspect of
    * of this control.
    *
-   * Never subscribe to the source directly. If you want to receive events with
-   * this control, subscribe to the `changes` observable.
+   * Never subscribe to the source directly. If you want to receive events for
+   * this control, subscribe to the `events` observable.
    */
-  abstract source: ControlSource<StateChange<string, any>>;
+  abstract source: ControlSource<ControlEvent<string, any>>;
 
-  /** An observable of all changes to this AbstractControl */
-  abstract changes: Observable<StateChange<string, any>>;
+  /** An observable of all events for this AbstractControl */
+  abstract events: Observable<
+    ControlEvent<string, any> & { stateChange: boolean }
+  >;
 
   abstract value: Value;
   /** The starting value of this form control */
@@ -494,9 +496,9 @@ export abstract class AbstractControl<Value = any, Data = any> {
     options?: { ignoreNoEmit?: boolean },
   ): Observable<T>;
 
-  abstract setValue(value: Value, options?: StateChangeOptions): void;
+  abstract setValue(value: Value, options?: ControlEventOptions): void;
 
-  abstract patchValue(value: any, options?: StateChangeOptions): void;
+  abstract patchValue(value: any, options?: ControlEventOptions): void;
 
   /**
    * If provided a `ValidationErrors` object or `null`, replaces the errors
@@ -507,7 +509,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
    */
   abstract setErrors(
     value: ValidationErrors | null | ReadonlyMap<ControlId, ValidationErrors>,
-    options?: StateChangeOptions,
+    options?: ControlEventOptions,
   ): void;
 
   /**
@@ -521,42 +523,44 @@ export abstract class AbstractControl<Value = any, Data = any> {
    */
   abstract patchErrors(
     value: ValidationErrors | ReadonlyMap<ControlId, ValidationErrors>,
-    options?: StateChangeOptions,
+    options?: ControlEventOptions,
   ): void;
 
-  abstract markTouched(value: boolean, options?: StateChangeOptions): void;
+  abstract markTouched(value: boolean, options?: ControlEventOptions): void;
 
-  abstract markChanged(value: boolean, options?: StateChangeOptions): void;
+  abstract markChanged(value: boolean, options?: ControlEventOptions): void;
 
-  abstract markReadonly(value: boolean, options?: StateChangeOptions): void;
+  abstract markReadonly(value: boolean, options?: ControlEventOptions): void;
 
-  abstract markSubmitted(value: boolean, options?: StateChangeOptions): void;
+  abstract markSubmitted(value: boolean, options?: ControlEventOptions): void;
 
   abstract markPending(
     value: boolean,
-    options?: StateChangeOptions & { source?: ControlId },
+    options?: ControlEventOptions & { source?: ControlId },
   ): void;
   abstract markPending(
     value: ReadonlyMap<ControlId, true>,
-    options?: StateChangeOptions,
+    options?: ControlEventOptions,
   ): void;
 
-  abstract markDisabled(value: boolean, options?: StateChangeOptions): void;
+  abstract markDisabled(value: boolean, options?: ControlEventOptions): void;
 
-  abstract focus(options?: StateChangeOptions): void;
+  abstract focus(options?: ControlEventOptions): void;
 
-  abstract reset(options?: StateChangeOptions & { asObservable?: false }): void;
   abstract reset(
-    options: StateChangeOptions & { asObservable: true },
-  ): Observable<StateChange<string, any>>;
+    options?: ControlEventOptions & { asObservable?: false },
+  ): void;
+  abstract reset(
+    options: ControlEventOptions & { asObservable: true },
+  ): Observable<ControlEvent<string, any>>;
 
   abstract setValidators(
     value: ValidatorFn | ValidatorFn[] | null,
-    options?: StateChangeOptions & { source?: ControlId },
+    options?: ControlEventOptions & { source?: ControlId },
   ): void;
   abstract setValidators(
     value: ReadonlyMap<ControlId, ValidatorFn>,
-    options?: StateChangeOptions,
+    options?: ControlEventOptions,
   ): void;
 
   /**
@@ -566,8 +570,8 @@ export abstract class AbstractControl<Value = any, Data = any> {
    * replaying the necessary state changes.
    */
   abstract replayState(
-    options?: StateChangeOptions & { includeDefaults?: boolean },
-  ): Observable<StateChange<string, any>>;
+    options?: ControlEventOptions & { includeDefaults?: boolean },
+  ): Observable<ControlEvent<string, any>>;
 
   /**
    * This method can be overridden in classes like FormGroup to support retrieving child
@@ -578,16 +582,16 @@ export abstract class AbstractControl<Value = any, Data = any> {
   ): A | null;
 
   /**
-   * A convenience method for creating a new arbitrary state change.
+   * A convenience method for emitting an arbitrary control event.
    */
-  stateChange<T extends string, V>(
-    change: Pick<StateChange<T, V>, 'type' | 'value'> &
-      Partial<StateChange<T, V>>,
+  emitEvent<T extends string, V>(
+    event: Pick<ControlEvent<T, V>, 'type' | 'value'> &
+      Partial<ControlEvent<T, V>>,
   ): void {
     this.source.next({
       source: this.id,
       applied: [],
-      ...change,
+      ...event,
     });
   }
 }

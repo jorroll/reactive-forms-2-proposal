@@ -209,7 +209,7 @@ export class NgCompatFormControlDirective implements OnChanges, OnDestroy {
       .subscribe(this.control.source);
 
     this.subscriptions.push(
-      this.control.changes
+      this.control.events
         .pipe(
           filter(
             ({ type, meta }) =>
@@ -227,7 +227,7 @@ export class NgCompatFormControlDirective implements OnChanges, OnDestroy {
     );
 
     this.subscriptions.push(
-      this.control.changes
+      this.control.events
         .pipe(
           filter(state => {
             if (state.noEmit) {

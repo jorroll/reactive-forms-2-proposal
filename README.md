@@ -10,18 +10,18 @@ If you like this proposal, and wish to update it, feel free to make PRs against 
 
 This proposal is published on npm as `reactive-forms-module2-proposal`. This is an experimental module that is _not suitable for production_.
 
-## StateChange API
+## ControlEvent API
 
-_Note: only *advanced users* of the AbstractControl API need to know about the StateChange API. Most users can simply use the methods provided on AbstractControl to accomplish everything (and don't even need to know the StateChange API is being used internally to accomplish tasks)._
+_Note: only *advanced users* of the AbstractControl API need to know about the ControlEvent API. Most users can simply use the methods provided on AbstractControl to accomplish everything (and don't even need to know that the ControlEvent API is being used internally to accomplish tasks)._
 
-At the core of this AbstractControl proposal is a new StateChange API which controls all mutations (state changes) to the AbstractControl. It is powered by two properties on the AbstractControl: `source: ControlSource<StateChange<string, any>>` and `changes: Observable<StateChange<string, any>>` (where `ControlSource` is simply a modified rxjs `Subject`).
+At the core of this AbstractControl proposal is a new ControlEvent API which controls all mutations (state changes) to the AbstractControl. It is powered by two properties on the AbstractControl: `source: ControlSource<ControlEvent<string, any>>` and `events: Observable<ControlEvent<string, any> & { stateChange: boolean }>` (where `ControlSource` is simply a modified rxjs `Subject`).
 
-To change the state of an AbstractControl, you emit a new StateChange object from the `source` property. This object has the interface
+To change the state of an AbstractControl, you emit a new ControlEvent object from the `source` property. This object has the interface
 
 _Figure 1:_
 
 ```ts
-interface StateChange<T extends string, V> {
+interface ControlEvent<Type extends string, Value> {
   source: ControlId;
   readonly applied: ControlId[];
   type: Type;
@@ -42,7 +42,7 @@ _Figure 2:_
 abstract class AbstractControl<V = any, D = any> {
   id: symbol;
 
-  markTouched(value: boolean, options: StateChangeOptions = {}) {
+  markTouched(value: boolean, options: ControlEventOptions = {}) {
     if (value !== this._touched) {
       this.source.next({
         source: source || this.id,
@@ -57,7 +57,7 @@ abstract class AbstractControl<V = any, D = any> {
 }
 ```
 
-Internally, the AbstractControl subscribes to output from the `ControlSource` (`source` property) and pipes that output to a `protected processState()` method. After being processed, the StateChange object is then re-emitted from the `changes` property (so when a subscriber receives a StateChange from the `changes` property, that change has already been applied to the AbstractControl).
+Internally, the AbstractControl subscribes to output from the `ControlSource` (`source` property) and pipes that output to a `protected processEvent()` method. After being processed, the ControlEvent object is then re-emitted from the `events` property (so when a subscriber receives a ControlEvent from the `events` property, any changes have already been applied to the AbstractControl).
 
 _Figure 3:_
 
@@ -65,40 +65,42 @@ _Figure 3:_
 abstract class AbstractControl<V = any, D = any> {
   id: symbol;
 
-  changes = this.source.pipe(
+  events = this.source.pipe(
     filter(
       // make sure we don't process an event we already processed
-      state => !state.applied.includes(this.id),
+      event => !event.applied.includes(this.id),
     ),
-    tap(state => {
+    tap(event => {
       // Add our ID to the `applied` array to indicate that this control
-      // has already processed this state change and doesn't need to
+      // has already processed this event and doesn't need to
       // do so again.
       //
-      // It's important that we `push()` the new change in to keep the same
+      // It's important that we `push()` the new ID in to keep the same
       // array reference
-      state.applied.push(this.id);
+      event.applied.push(this.id);
 
-      this.processState(state);
+      this.processEvent(event);
     }),
     share(),
   );
 }
 ```
 
-You'll notice that only state changes that haven't yet been applied to this `AbstractControl` are processed (i.e. `!state.applied.includes(this.id)`). This allows two AbstractControls to subscribe to each other's changes without entering into an infinite loop.
+You'll notice that only events that haven't yet been applied to this `AbstractControl` are processed (i.e. `!event.applied.includes(this.id)`). This allows two AbstractControls to subscribe to each other's events without entering into an infinite loop.
+
+Additionally, if an event causes a state change for an AbstractControl, `processEvent` will add a `stateChange: true` boolean to the ControlEvent before emitting it from the `events` stream. If an event doesn't cause a state change, then `stateChange: false` will be added.
 
 ### Extensibility
 
-This StateChange API is highly extensible. At any time, a user can emit a custom state change using the `AbstractControl#stateChange()` method. A custom state change will have no meaning to the AbstractControl itself, but it will be emitted from the `changes` observable and the user can act on the state change as appropriate. Similarly, if you actually create a custom AbstractControl (or extend an existing abstract control), you can simply define new state changes and add in custom logic to process them.
+This ControlEvent API is highly extensible. At any time, a user can emit a custom event using the `AbstractControl#emitEvent()` method. A custom event will have no meaning to the AbstractControl itself, but it will be emitted from the `events` observable and the user can act on the event as appropriate. Similarly, if you actually create a custom AbstractControl (or extend an existing abstract control), you can simply define new events and add in custom logic to process them.
 
-StateChanges can also be used to emit events (rather than an actual _state change_). For example, the current `FormControlDirective` emits a custom `{type: "ControlAccessor", value: 'PreInit" | "PostInit" | "Cleanup"}` state change to allow hooking into the `FormControlDirective's` lifecycle.
+While many of the built-in ControlEvents which are emitted are state change events, not all of them are. For example, the current `FormControlDirective` emits a custom `{type: "ControlAccessor", value: 'PreInit" | "PostInit" | "Cleanup"}` event to allow hooking into the `FormControlDirective's` lifecycle. Similarly, `validation` lifecycle events are emitted to allow hooking into a control's validation process. The validation lifecycle is useful if you want a custom validation service to monitor a control.
 
-### View the API of individual StateChanges
+### View the API of individual ControlEvents
 
-At the moment, the place to view all the different predefined state changes is in the source code. The `protected processState()` method is responsible for processing all state changes. Eventually, it would be important to document the interface of different state changes.
+At the moment, the place to view all the different predefined control events is in the source code. The `protected processEvent()` method is responsible for processing all control events. Eventually, it would be important to document the interface of different control events.
 
-- [view source code](./libs/reactive-forms-module2-proposal/src/lib/models/control-base.ts#L977)
+- [view source code](./libs/reactive-forms-module2-proposal/src/lib/models/control-base.ts)
 
 ## ControlAccessor API
 
@@ -136,7 +138,7 @@ export class ExampleComponent implements ControlAccessor {
 }
 ```
 
-If you want to mark the control accessor as touched, simply `control.markTouched(true)`. If you want to update the value of the control, simply `control.patchValue(new Date())`. If you wish to subscribe to value changes of a `ControlAccessor`, simply grab the `control` property and subscribe to value changes `control.observeChanges('value')`. Because of the easy ability to sync controls in the new state change API, you can link your form control to a `ControlAccessor` via:
+If you want to mark the control accessor as touched, simply `control.markTouched(true)`. If you want to update the value of the control, simply `control.patchValue(new Date())`. If you wish to subscribe to value changes of a `ControlAccessor`, simply grab the `control` property and subscribe to value changes `control.observeChanges('value')`. Because of the easy ability to sync controls with the new control events API, you can link your form control to a `ControlAccessor` via:
 
 ```ts
 @Component({
@@ -165,10 +167,10 @@ export class ExampleComponent {
       this.control
         .replayState({ includeDefaults: true })
         .subscribe(this.accessor.control.source),
-      // then we subscribe the accessor to changes in our control state
-      this.control.changes.subscribe(this.accessor.control.source),
-      // we also subscribe our control to changes in the accessor start
-      this.accessor.control.changes.subscribe(this.control.source),
+      // then we subscribe the accessor to events in our control state
+      this.control.events.subscribe(this.accessor.control.source),
+      // we also subscribe our control to events in the accessor start
+      this.accessor.control.events.subscribe(this.control.source),
     );
   }
 
@@ -204,7 +206,7 @@ export class PeopleFormComponent implements ControlContainerAccessor {
 
   ngOnInit() {
     this.subscriptions.push(
-      this.control.changes
+      this.control.events
         .pipe(
           // The FormControlDirective's API gives us a few lifecycle hooks.
           // Here, after this ControlAccessor has been linked to another control via a
@@ -240,11 +242,11 @@ export class PeopleFormComponent implements ControlContainerAccessor {
 
 ## AbstractControl API
 
-The StateChange API enables some cool features. A few of which I'll highlight here (also check out the examples demonstration on stackblitz):
+The ControlEvent API enables some cool features. A few of which I'll highlight here (also check out the examples demonstration on stackblitz):
 
 ### Async Validation
 
-The state change API makes subscribing to changes and adding errors super easy (shown in Example Four of the stackblitz demo):
+The control events API allows us to validate our controls using services! (also shown in Example Four of the stackblitz demo):
 
 ```ts
 class ExampleFourComponent implements OnInit {
@@ -257,39 +259,48 @@ class ExampleFourComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.usernameControl
-      // we subscribe to value changes of the `usernameControl`, specifying that
-      // we want to receive changes even if the user has specified the "noEmit"
-      // option for the changes
-      .observeChanges('value', { ignoreNoEmit: true })
+    this.usernameControl.events
       .pipe(
-        tap(() =>
-          // When a change comes in, we mark the `usernameControl` as pending.
-          // We optionally specify the pending source as the `"userService"`.
-          // This means that if another source specifies `markPending(false)`,
-          // our control will still be considered pending until this service's
-          // pending call is also false.
-          this.usernameControl.markPending(true, { source: 'userService' }),
-        ),
-        debounceTime(500),
-        // preform our validation using the external service.
-        switchMap(value => this.userService.doesNameExist(value)),
-        tap(() =>
-          // mark our control as no longer pending
-          this.usernameControl.markPending(false, { source: 'userService' }),
-        ),
+        // Wait for the control to complete its synchronous validation.
+        filter(event => event.type === 'validation' && event.value === 'end'),
+        tap(() => {
+          // Discard any existing errors set by the userService as they are
+          // no longer applicable.
+          this.usernameControl.setErrors(null, {
+            source: `userService`,
+          });
+
+          // If the control is already marked invalid, we're going to skip the async
+          // validation check so don't bother to mark pending.
+          this.usernameControl.markPending(this.usernameControl.valid, {
+            source: `userService`,
+          });
+        }),
+        // By running validation inside a `switchMap` + `interval()` (instead
+        // of `debounceTime()`), we ensure that an in-progress async validation
+        // check is discarded if the user starts typing again.
+        switchMap(() => {
+          // If the control is already invalid we don't need to do anything.
+          if (this.usernameControl.invalid) return NEVER;
+
+          // Else run validation.
+          return interval(500).pipe(
+            take(1),
+            switchMap(() =>
+              this.userService.doesNameExist(this.usernameControl.value),
+            ),
+          );
+        }),
       )
       .subscribe(response => {
+        this.usernameControl.markPending(false, {
+          source: `userService`,
+        });
+
         const errors = response.payload ? { userNameExists: true } : null;
 
-        // update our usernameControl's errors property with either `null` or the
-        // relevant errors. Like the call to `markPending`, we can specify the
-        // source of these errors so that another service setting `null` errors
-        // will not erase *this services* errors.
-        //
-        // A control has errors so long as any source has added errors.
         this.usernameControl.setErrors(errors, {
-          source: 'userService',
+          source: `userService`,
         });
       });
   }

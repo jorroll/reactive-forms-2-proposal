@@ -6,7 +6,7 @@ import {
   Input,
 } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { AbstractControl, StateChange } from '../models';
+import { AbstractControl, ControlEvent } from '../models';
 import { ControlStateMapper, ControlValueMapper } from './interface';
 import { filter, map, startWith } from 'rxjs/operators';
 import { ControlAccessor } from '../accessors';
@@ -33,33 +33,39 @@ export abstract class NgBaseDirective<T extends AbstractControl>
 
   ngOnInit() {
     this.subscriptions.push(
-      this.watchProp('touched').subscribe(touched => {
-        if (touched) {
-          this.renderer.addClass(this.el.nativeElement, 'sw-touched');
-          this.renderer.removeClass(this.el.nativeElement, 'sw-untouched');
-        } else {
-          this.renderer.addClass(this.el.nativeElement, 'sw-untouched');
-          this.renderer.removeClass(this.el.nativeElement, 'sw-touched');
-        }
-      }),
-      this.watchProp('submitted').subscribe(submitted => {
-        if (submitted) {
-          this.renderer.addClass(this.el.nativeElement, 'sw-submitted');
-          this.renderer.removeClass(this.el.nativeElement, 'sw-unsubmitted');
-        } else {
-          this.renderer.addClass(this.el.nativeElement, 'sw-unsubmitted');
-          this.renderer.removeClass(this.el.nativeElement, 'sw-submitted');
-        }
-      }),
-      this.watchProp('changed').subscribe(changed => {
-        if (changed) {
-          this.renderer.addClass(this.el.nativeElement, 'sw-changed');
-          this.renderer.removeClass(this.el.nativeElement, 'sw-unchanged');
-        } else {
-          this.renderer.addClass(this.el.nativeElement, 'sw-unchanged');
-          this.renderer.removeClass(this.el.nativeElement, 'sw-changed');
-        }
-      }),
+      this.control
+        .observe('touched', { ignoreNoEmit: true })
+        .subscribe(touched => {
+          if (touched) {
+            this.renderer.addClass(this.el.nativeElement, 'sw-touched');
+            this.renderer.removeClass(this.el.nativeElement, 'sw-untouched');
+          } else {
+            this.renderer.addClass(this.el.nativeElement, 'sw-untouched');
+            this.renderer.removeClass(this.el.nativeElement, 'sw-touched');
+          }
+        }),
+      this.control
+        .observe('submitted', { ignoreNoEmit: true })
+        .subscribe(submitted => {
+          if (submitted) {
+            this.renderer.addClass(this.el.nativeElement, 'sw-submitted');
+            this.renderer.removeClass(this.el.nativeElement, 'sw-unsubmitted');
+          } else {
+            this.renderer.addClass(this.el.nativeElement, 'sw-unsubmitted');
+            this.renderer.removeClass(this.el.nativeElement, 'sw-submitted');
+          }
+        }),
+      this.control
+        .observe('changed', { ignoreNoEmit: true })
+        .subscribe(changed => {
+          if (changed) {
+            this.renderer.addClass(this.el.nativeElement, 'sw-changed');
+            this.renderer.removeClass(this.el.nativeElement, 'sw-unchanged');
+          } else {
+            this.renderer.addClass(this.el.nativeElement, 'sw-unchanged');
+            this.renderer.removeClass(this.el.nativeElement, 'sw-changed');
+          }
+        }),
     );
   }
 
@@ -68,20 +74,12 @@ export abstract class NgBaseDirective<T extends AbstractControl>
     this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 
-  protected watchProp(prop: keyof T) {
-    return this.control.changes.pipe(
-      filter(({ type }) => type === prop),
-      startWith(null),
-      map(() => this.control[prop]),
-    );
-  }
-
   protected toProvidedControlMapFn() {
     if (this.stateMapper && this.valueMapper) {
       const stateMapper = this.stateMapper;
       const valueMapper = this.valueMapper;
 
-      return (state: StateChange<string, any>) => {
+      return (state: ControlEvent<string, any>) => {
         if (state.type === 'value' || state.type === 'valueDefault') {
           state = {
             ...state,
@@ -94,11 +92,11 @@ export abstract class NgBaseDirective<T extends AbstractControl>
     } else if (this.stateMapper) {
       const stateMapper = this.stateMapper;
 
-      return (state: StateChange<string, any>) => stateMapper.toControl(state);
+      return (state: ControlEvent<string, any>) => stateMapper.toControl(state);
     } else if (this.valueMapper) {
       const valueMapper = this.valueMapper;
 
-      return (state: StateChange<string, any>) => {
+      return (state: ControlEvent<string, any>) => {
         if (state.type === 'value' || state.type === 'valueDefault') {
           return {
             ...state,
@@ -109,7 +107,7 @@ export abstract class NgBaseDirective<T extends AbstractControl>
         return state;
       };
     } else {
-      return (state: StateChange<string, any>) => state;
+      return (state: ControlEvent<string, any>) => state;
     }
   }
 
@@ -118,7 +116,7 @@ export abstract class NgBaseDirective<T extends AbstractControl>
       const stateMapper = this.stateMapper;
       const valueMapper = this.valueMapper;
 
-      return (state: StateChange<string, any>) => {
+      return (state: ControlEvent<string, any>) => {
         if (state.type === 'value' || state.type === 'valueDefault') {
           state = {
             ...state,
@@ -131,12 +129,12 @@ export abstract class NgBaseDirective<T extends AbstractControl>
     } else if (this.stateMapper) {
       const stateMapper = this.stateMapper;
 
-      return (state: StateChange<string, any>) =>
+      return (state: ControlEvent<string, any>) =>
         stateMapper.fromControl(state);
     } else if (this.valueMapper) {
       const valueMapper = this.valueMapper;
 
-      return (state: StateChange<string, any>) => {
+      return (state: ControlEvent<string, any>) => {
         if (state.type === 'value' || state.type === 'valueDefault') {
           return {
             ...state,
@@ -147,7 +145,7 @@ export abstract class NgBaseDirective<T extends AbstractControl>
         return state;
       };
     } else {
-      return (state: StateChange<string, any>) => state;
+      return (state: ControlEvent<string, any>) => state;
     }
   }
 }
