@@ -11,14 +11,3 @@ export function looseIdentical(a: any, b: any): boolean {
 export function setupListeners(dir: any, event: string, fn: string) {
   dir.renderer.listen(dir.el.nativeElement, event, dir[fn].bind(dir));
 }
-
-export function watchProp<T extends AbstractControl>(
-  control: T,
-  prop: keyof T,
-) {
-  return control.changes.pipe(
-    filter(({ type }) => type === prop),
-    startWith(null),
-    map(() => control[prop]),
-  );
-}

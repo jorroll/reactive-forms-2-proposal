@@ -13,6 +13,6 @@ export class ExampleOneComponent implements OnInit {
   constructor() {}
 
   ngOnInit() {
-    this.controlA.changes.subscribe(this.controlB.source);
+    this.controlA.events.subscribe(this.controlB.source);
   }
 }

@@ -3,8 +3,8 @@ import { map, filter } from 'rxjs/operators';
 import {
   AbstractControl,
   AbstractControlValue,
-  StateChange,
-  StateChangeOptions,
+  ControlEvent,
+  ControlEventOptions,
 } from './abstract-control';
 import { IControlBaseArgs } from './control-base';
 import { ControlContainerBase } from './control-container-base';
@@ -44,7 +44,7 @@ export class FormGroup<
 
   patchValue(
     value: Partial<FormGroupValue<T>>,
-    options: StateChangeOptions = {},
+    options: ControlEventOptions = {},
   ) {
     Object.entries(value).forEach(([key, val]) => {
       this.controls[key].patchValue(val, options);
@@ -54,20 +54,20 @@ export class FormGroup<
   setControl<N extends keyof T>(
     name: N,
     control: T[N] | null,
-    options?: StateChangeOptions,
+    options?: ControlEventOptions,
   ) {
     const value = {
       ...this._controls,
       [name]: control,
     };
 
-    this.source.next(this.buildStateChange('controls', value, options));
+    this.source.next(this.buildEvent('controls', value, options));
   }
 
   addControl<N extends keyof T>(
     name: N,
     control: T[N],
-    options?: StateChangeOptions,
+    options?: ControlEventOptions,
   ) {
     if (this.controls[name]) return;
 
@@ -76,20 +76,20 @@ export class FormGroup<
       [name]: control,
     };
 
-    this.source.next(this.buildStateChange('controls', value, options));
+    this.source.next(this.buildEvent('controls', value, options));
   }
 
-  removeControl(name: keyof T, options?: StateChangeOptions) {
+  removeControl(name: keyof T, options?: ControlEventOptions) {
     if (!this.controls[name]) return;
 
     const value = Object.fromEntries(
       Object.entries(this._controls).filter(([key]) => key !== name),
     ) as T;
 
-    this.source.next(this.buildStateChange('controls', value, options));
+    this.source.next(this.buildEvent('controls', value, options));
   }
 
-  markAllTouched(value: boolean, options: StateChangeOptions = {}) {
+  markAllTouched(value: boolean, options: ControlEventOptions = {}) {
     Object.values(this._controls).forEach(control => {
       control.markTouched(value, options);
     });
@@ -102,19 +102,9 @@ export class FormGroup<
 
     this._sourceSubscription = merge(
       ...Object.entries(this.controls).map(([key, control]) =>
-        concat(control.replayState(), control.changes).pipe(
-          // filter(({ type }) =>
-          //   [
-          //     'value',
-          //     'disabled',
-          //     'readonly',
-          //     'touched',
-          //     'pending',
-          //     'changed',
-          //     'submitted',
-          //   ].includes(type),
-          // ),
-          map<StateChange<string, any>, StateChange<string, unknown>>(
+        concat(control.replayState(), control.events).pipe(
+          filter(({ stateChange }) => stateChange),
+          map<ControlEvent<string, any>, ControlEvent<string, unknown>>(
             ({ applied, type, value, noEmit, meta }) => {
               const shared = {
                 source: this.id,
@@ -134,7 +124,7 @@ export class FormGroup<
                     },
                     skipShapeValidation: true,
                     skipControls: true,
-                  } as StateChange<string, FormGroupValue<T>>;
+                  } as ControlEvent<string, FormGroupValue<T>>;
                 }
                 case 'disabled': {
                   return {
@@ -195,7 +185,7 @@ export class FormGroup<
                   return {
                     source: this.id,
                     applied,
-                    type: 'ChildStateChange',
+                    type: 'childStateChange',
                     value: undefined,
                   };
                 }
@@ -234,17 +224,18 @@ export class FormGroup<
     }
   }
 
-  protected processState(state: StateChange<string, any>) {
-    switch (state.type) {
+  protected processEvent(event: ControlEvent<string, any>) {
+    switch (event.type) {
       case 'value': {
-        if (!state.skipShapeValidation) {
-          this.validateValueShape(state.value);
+        event.stateChange = true;
+        if (!event.skipShapeValidation) {
+          this.validateValueShape(event.value);
         }
 
-        if (!state.skipControls) {
-          Object.entries(state.value).forEach(([key, value]) => {
+        if (!event.skipControls) {
+          Object.entries(event.value).forEach(([key, value]) => {
             this.controls[key].source.next({
-              ...state,
+              ...event,
               value,
             });
           });
@@ -253,36 +244,37 @@ export class FormGroup<
         // We extract the value from the controls in case the controls
         // themselves change the value
         this._value = extractValue<T>((this.controls || {}) as T);
-        this.updateValidation(state);
+        this.updateValidation(event);
 
         return true;
       }
       case 'controls': {
-        this._controls = { ...state.value };
+        event.stateChange = true;
+        this._controls = { ...event.value };
 
         this.setupSource();
 
         this.source.next(
-          this.buildStateChange(
-            'value',
-            extractValue<T>(this.controls),
-            state,
-            {
-              skipControls: true,
-              skipShapeValidation: true,
-            },
-          ),
+          this.buildEvent('value', extractValue<T>(this.controls), event, {
+            skipControls: true,
+            skipShapeValidation: true,
+          }),
         );
 
         return true;
       }
       case 'controlsDefault': {
-        this._controlsDefault = { ...state.value };
+        event.stateChange = true;
+        this._controlsDefault = { ...event.value };
+        return true;
+      }
+      case 'childStateChange': {
+        event.stateChange = true;
         return true;
       }
     }
 
-    return super.processState(state);
+    return super.processEvent(event);
   }
 }
 

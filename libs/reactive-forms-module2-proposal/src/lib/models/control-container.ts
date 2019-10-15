@@ -1,4 +1,4 @@
-import { AbstractControl, StateChangeOptions } from './abstract-control';
+import { AbstractControl, ControlEventOptions } from './abstract-control';
 
 export type ControlContainerControls<T> = T extends ControlContainer<infer C>
   ? C
@@ -37,5 +37,5 @@ export abstract class ControlContainer<
 
   abstract removeControl(...args: any[]): void;
 
-  abstract markAllTouched(value: boolean, options?: StateChangeOptions): void;
+  abstract markAllTouched(value: boolean, options?: ControlEventOptions): void;
 }

@@ -17,7 +17,7 @@ import {
 } from '@angular/core';
 import { ɵgetDOM as getDOM } from '@angular/platform-browser';
 import { distinctUntilChanged } from 'rxjs/operators';
-import { setupListeners, watchProp } from './util';
+import { setupListeners } from './util';
 import { FormControl } from '../models';
 import { NG_CONTROL_ACCESSOR, ControlAccessor } from './interface';
 
@@ -94,16 +94,19 @@ export class DefaultValueAccessor implements ControlAccessor {
       this._compositionMode = !_isAndroid();
     }
 
-    watchProp(this.control, 'value').subscribe((value: any) => {
-      const normalizedValue = value == null ? '' : value;
-      this.renderer.setProperty(
-        this.el.nativeElement,
-        'value',
-        normalizedValue,
-      );
-    });
+    this.control
+      .observe('value', { ignoreNoEmit: true })
+      .subscribe((value: any) => {
+        const normalizedValue = value == null ? '' : value;
+        this.renderer.setProperty(
+          this.el.nativeElement,
+          'value',
+          normalizedValue,
+        );
+      });
 
-    watchProp(this.control, 'disabled')
+    this.control
+      .observe('disabled', { ignoreNoEmit: true })
       .pipe(distinctUntilChanged())
       .subscribe(isDisabled => {
         this.renderer.setProperty(
