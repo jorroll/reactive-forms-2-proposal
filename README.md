@@ -88,6 +88,18 @@ abstract class AbstractControl<V = any, D = any> {
 
 You'll notice that only state changes that haven't yet been applied to this `AbstractControl` are processed (i.e. `!state.applied.includes(this.id)`). This allows two AbstractControls to subscribe to each other's changes without entering into an infinite loop.
 
+### Extensibility
+
+This StateChange API is highly extensible. At any time, a user can emit a custom state change using the `AbstractControl#stateChange()` method. A custom state change will have no meaning to the AbstractControl itself, but it will be emitted from the `changes` observable and the user can act on the state change as appropriate. Similarly, if you actually create a custom AbstractControl (or extend an existing abstract control), you can simply define new state changes and add in custom logic to process them.
+
+StateChanges can also be used to emit events (rather than an actual _state change_). For example, the current `FormControlDirective` emits a custom `{type: "ControlAccessor", value: 'PreInit" | "PostInit" | "Cleanup"}` state change to allow hooking into the `FormControlDirective's` lifecycle.
+
+### View the API of individual StateChanges
+
+At the moment, the place to view all the different predefined state changes is in the source code. The `protected processState()` method is responsible for processing all state changes. Eventually, it would be important to document the interface of different state changes.
+
+- [view source code](./libs/reactive-forms-module2-proposal/src/lib/models/control-base.ts#L977)
+
 ## ControlAccessor API
 
 This proposal can easily be made compatible with the current `ControlValueAccessor` API. This being said, this proposal enables the following new, simpler and more powerful `ControlAccessor` interface:
