@@ -323,7 +323,7 @@ formGroup
   });
 ```
 
-Here, we are subscribing to changes to the controls of `innerFormGroup`. Also not that this method call has full type safety. i.e. the `controls` value we are subscribing to has the type:
+Here, we are subscribing to changes to the controls of `innerFormGroup`. Also note that this method call has full type safety. i.e. the `controls` value we are subscribing to has the type:
 
 ```ts
 { id: FormControl<number>; name: FormControl<string> }
