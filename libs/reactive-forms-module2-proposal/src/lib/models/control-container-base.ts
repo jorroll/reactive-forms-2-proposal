@@ -16,8 +16,6 @@ export abstract class ControlContainerBase<C, V, D> extends ControlBase<V, D>
     return this._controls;
   }
 
-  protected abstract _controlsDefault: C;
-
   protected _sourceSubscription?: Subscription;
 
   constructor(value: V, options: IControlBaseArgs<V, D> = {}) {
@@ -58,22 +56,10 @@ export abstract class ControlContainerBase<C, V, D> extends ControlBase<V, D>
 
   abstract markAllTouched(value: boolean, options?: ControlEventOptions): void;
 
-  replayState(
-    options: ControlEventOptions & { includeDefaults?: boolean } = {},
-  ) {
+  replayState(options: ControlEventOptions = {}) {
     const state: ControlEvent<string, any>[] = [
       this.buildEvent('controls', this.controls, options),
     ];
-
-    if (options.includeDefaults) {
-      state.push(
-        this.buildEvent(
-          'controlsDefault',
-          this._controlsDefault,
-          options,
-        ),
-      );
-    }
 
     return concat(
       from(state).pipe(

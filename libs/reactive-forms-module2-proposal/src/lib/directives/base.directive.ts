@@ -80,7 +80,7 @@ export abstract class NgBaseDirective<T extends AbstractControl>
       const valueMapper = this.valueMapper;
 
       return (state: ControlEvent<string, any>) => {
-        if (state.type === 'value' || state.type === 'valueDefault') {
+        if (state.type === 'value') {
           state = {
             ...state,
             value: valueMapper.toControl(state.value),
@@ -97,7 +97,7 @@ export abstract class NgBaseDirective<T extends AbstractControl>
       const valueMapper = this.valueMapper;
 
       return (state: ControlEvent<string, any>) => {
-        if (state.type === 'value' || state.type === 'valueDefault') {
+        if (state.type === 'value') {
           return {
             ...state,
             value: valueMapper.toControl(state.value),
@@ -117,7 +117,7 @@ export abstract class NgBaseDirective<T extends AbstractControl>
       const valueMapper = this.valueMapper;
 
       return (state: ControlEvent<string, any>) => {
-        if (state.type === 'value' || state.type === 'valueDefault') {
+        if (state.type === 'value') {
           state = {
             ...state,
             value: valueMapper.fromControl(state.value),
@@ -135,7 +135,7 @@ export abstract class NgBaseDirective<T extends AbstractControl>
       const valueMapper = this.valueMapper;
 
       return (state: ControlEvent<string, any>) => {
-        if (state.type === 'value' || state.type === 'valueDefault') {
+        if (state.type === 'value') {
           return {
             ...state,
             value: valueMapper.fromControl(state.value),
