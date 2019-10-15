@@ -22,7 +22,6 @@ export class FormGroup<
   D = any
 > extends ControlContainerBase<T, FormGroupValue<T>, D> {
   protected _controls: T;
-  protected _controlsDefault: T;
 
   constructor(
     controls: T = {} as T,
@@ -31,7 +30,6 @@ export class FormGroup<
     super(extractValue<T>(controls), options);
 
     this._controls = { ...controls };
-    this._controlsDefault = { ...controls };
 
     this.setupSource();
   }
@@ -261,11 +259,6 @@ export class FormGroup<
           }),
         );
 
-        return true;
-      }
-      case 'controlsDefault': {
-        event.stateChange = true;
-        this._controlsDefault = { ...event.value };
         return true;
       }
       case 'childStateChange': {

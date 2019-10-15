@@ -38,11 +38,8 @@ export abstract class NgControlDirective<T extends AbstractControl>
 
     this.onChangesSubscriptions.push(
       this.providedControl
-        .replayState({ includeDefaults: true })
-        .pipe(
-          filter(({ type }) => type !== 'validation'),
-          map(this.fromProvidedControlMapFn()),
-        )
+        .replayState()
+        .pipe(map(this.fromProvidedControlMapFn()))
         .subscribe(this.control.source),
       this.providedControl.events
         .pipe(

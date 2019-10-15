@@ -38,10 +38,7 @@ export class NgFormControlDirective extends NgControlDirective<FormControl>
     this.accessor = resolveControlAccessor(accessors);
 
     this.subscriptions.push(
-      this.accessor.control
-        .replayState({ includeDefaults: true })
-        .pipe(filter(({ type }) => type !== 'validation'))
-        .subscribe(this.control.source),
+      this.accessor.control.replayState().subscribe(this.control.source),
       this.accessor.control.events
         .pipe(filter(({ type }) => type !== 'validation'))
         .subscribe(this.control.source),

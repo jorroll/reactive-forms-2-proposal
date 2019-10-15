@@ -80,16 +80,14 @@ export class ExampleThreeFiveComponent implements OnInit {
     this.inputControl.events
       .pipe(
         map(state => {
-          switch (state.type) {
-            case 'value':
-            case 'valueDefault':
-              return {
-                ...state,
-                value: stringToDate(state.value),
-              };
-            default:
-              return state;
+          if (state.type === 'value') {
+            return {
+              ...state,
+              value: stringToDate(state.value),
+            };
           }
+
+          return state;
         }),
       )
       .subscribe(this.dateControl.source);
@@ -97,16 +95,14 @@ export class ExampleThreeFiveComponent implements OnInit {
     this.dateControl.events
       .pipe(
         map(state => {
-          switch (state.type) {
-            case 'value':
-            case 'valueDefault':
-              return {
-                ...state,
-                value: dateToString(state.value),
-              };
-            default:
-              return state;
+          if (state.type === 'value') {
+            return {
+              ...state,
+              value: dateToString(state.value),
+            };
           }
+
+          return state;
         }),
       )
       .subscribe(this.inputControl.source);

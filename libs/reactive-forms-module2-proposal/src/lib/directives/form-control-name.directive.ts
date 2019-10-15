@@ -55,10 +55,7 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
     this.accessor = resolveControlAccessor(accessors);
 
     this.subscriptions.push(
-      this.accessor.control
-        .replayState({ includeDefaults: true })
-        .pipe(filter(({ type }) => type !== 'validation'))
-        .subscribe(this.control.source),
+      this.accessor.control.replayState().subscribe(this.control.source),
       this.accessor.control.events
         .pipe(filter(({ type }) => type !== 'validation'))
         .subscribe(this.control.source),
@@ -98,11 +95,8 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
 
             this.innerSubscriptions.push(
               providedControl
-                .replayState({ includeDefaults: true })
-                .pipe(
-                  filter(({ type }) => type !== 'validation'),
-                  map(this.fromProvidedControlMapFn()),
-                )
+                .replayState()
+                .pipe(map(this.fromProvidedControlMapFn()))
                 .subscribe(this.control.source),
               providedControl.events
                 .pipe(

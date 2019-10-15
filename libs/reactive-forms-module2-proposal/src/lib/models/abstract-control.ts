@@ -85,8 +85,6 @@ export abstract class AbstractControl<Value = any, Data = any> {
   >;
 
   abstract value: Value;
-  /** The starting value of this form control */
-  abstract defaultValue: Value;
 
   abstract errors: ValidationErrors | null;
 
@@ -121,9 +119,6 @@ export abstract class AbstractControl<Value = any, Data = any> {
   abstract submitted: boolean;
   abstract touched: boolean;
   abstract changed: boolean;
-
-  /** A boolean indicating if the current value is the same as the starting value */
-  abstract isDefaultValue: boolean;
   abstract dirty: boolean;
 
   /**
@@ -547,13 +542,6 @@ export abstract class AbstractControl<Value = any, Data = any> {
 
   abstract focus(options?: ControlEventOptions): void;
 
-  abstract reset(
-    options?: ControlEventOptions & { asObservable?: false },
-  ): void;
-  abstract reset(
-    options: ControlEventOptions & { asObservable: true },
-  ): Observable<ControlEvent<string, any>>;
-
   abstract setValidators(
     value: ValidatorFn | ValidatorFn[] | null,
     options?: ControlEventOptions & { source?: ControlId },
@@ -570,7 +558,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
    * replaying the necessary state changes.
    */
   abstract replayState(
-    options?: ControlEventOptions & { includeDefaults?: boolean },
+    options?: ControlEventOptions,
   ): Observable<ControlEvent<string, any>>;
 
   /**

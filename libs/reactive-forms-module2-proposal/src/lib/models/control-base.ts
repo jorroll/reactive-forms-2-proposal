@@ -24,7 +24,6 @@ export type ControlBaseData<T> = T extends ControlBase<any, infer D> ? D : any;
 
 export interface IControlBaseArgs<Value = any, Data = any> {
   data?: Data;
-  defaultValue?: Value;
   validators?:
     | ValidatorFn
     | ValidatorFn[]
@@ -89,14 +88,9 @@ export abstract class ControlBase<
     share(),
   ) as any) as Observable<ControlEvent<string, any> & { stateChange: boolean }>;
 
-  protected _valueDefault?: Value;
   protected _value: Value;
   get value() {
     return this._value;
-  }
-
-  get defaultValue() {
-    return this._valueDefault as Value;
   }
 
   protected _errors: ValidationErrors | null = null;
@@ -109,7 +103,6 @@ export abstract class ControlBase<
     ValidationErrors
   >();
 
-  protected _disabledDefault = false;
   protected _disabled = false;
   get disabled() {
     return this._disabled;
@@ -125,7 +118,6 @@ export abstract class ControlBase<
 
   pendingStore: ReadonlyMap<ControlId, true> = new Map<ControlId, true>();
 
-  protected _pendingStoreDefault: ReadonlyMap<ControlId, true> = new Map();
   protected _pending = false;
   get pending() {
     return this._pending;
@@ -147,33 +139,25 @@ export abstract class ControlBase<
     share(),
   );
 
-  protected _readonlyDefault = false;
   protected _readonly = false;
   get readonly() {
     return this._readonly;
   }
 
-  protected _submittedDefault = false;
   protected _submitted = false;
   get submitted() {
     return this._submitted;
   }
 
-  protected _touchedDefault = false;
   protected _touched = false;
   get touched() {
     return this._touched;
   }
 
-  protected _changedDefault = false;
   protected _changed = false;
 
   get changed() {
     return this._changed;
-  }
-
-  get isDefaultValue() {
-    return this.value === this._valueDefault;
   }
 
   get dirty() {
@@ -185,7 +169,6 @@ export abstract class ControlBase<
     ValidatorFn
   >();
 
-  protected _validatorStoreDefault: ReadonlyMap<ControlId, ValidatorFn>;
   protected _validator: ValidatorFn | null = null;
   get validator() {
     return this._validator;
@@ -201,47 +184,33 @@ export abstract class ControlBase<
     // observable to fire and the logic to process
     this.events.subscribe();
 
-    this._disabledDefault = !!options.disabled;
-    this._disabled = this._disabledDefault;
-    this._readonlyDefault = !!options.readonly;
-    this._readonly = this._readonlyDefault;
-    this._submittedDefault = !!options.submitted;
-    this._submitted = this._submittedDefault;
-    this._touchedDefault = !!options.touched;
-    this._touched = this._touchedDefault;
-    this._changedDefault = !!options.changed;
-    this._changed = this._changedDefault;
-
-    if (options.hasOwnProperty('defaultValue')) {
-      this._valueDefault = options.defaultValue;
-    } else {
-      this._valueDefault = undefined;
-    }
+    this._disabled = !!options.disabled;
+    this._readonly = !!options.readonly;
+    this._submitted = !!options.submitted;
+    this._touched = !!options.touched;
+    this._changed = !!options.changed;
 
     this._value = value!;
 
     if (options.pending instanceof Map) {
-      this._pendingStoreDefault = new Map(options.pending);
+      this.pendingStore = new Map(options.pending);
     } else if (options.pending) {
-      this._pendingStoreDefault = new Map([[this.id, true]]);
+      this.pendingStore = new Map([[this.id, true]]);
     } else {
-      this._pendingStoreDefault = new Map();
+      this.pendingStore = new Map();
     }
 
-    this.pendingStore = new Map(this._pendingStoreDefault);
     this._pending = Array.from(this.pendingStore.values()).some(val => val);
 
     if (options.validators instanceof Map) {
-      this._validatorStoreDefault = new Map(options.validators);
+      this.validatorStore = new Map(options.validators);
     } else if (!options.validators) {
-      this._validatorStoreDefault = new Map();
+      this.validatorStore = new Map();
     } else {
-      this._validatorStoreDefault = new Map([
+      this.validatorStore = new Map([
         [this.id, composeValidators(options.validators as ValidatorFn)!],
       ]);
     }
-
-    this.validatorStore = new Map(this._validatorStoreDefault);
 
     this._validator = composeValidators(
       Array.from(this.validatorStore.values()),
@@ -831,37 +800,6 @@ export abstract class ControlBase<
     this.source.next(this.buildEvent('focus', undefined, options));
   }
 
-  reset(options?: ControlEventOptions & { asObservable?: false }): void;
-  reset(
-    options: ControlEventOptions & { asObservable: true },
-  ): Observable<ControlEvent<string, any>>;
-  reset(options: ControlEventOptions & { asObservable?: boolean } = {}) {
-    const state: ControlEvent<string, any>[] = [
-      this.buildEvent('touched', this._touchedDefault, options),
-      this.buildEvent('changed', this._changedDefault, options),
-      this.buildEvent('readonly', this._readonlyDefault, options),
-      this.buildEvent('submitted', this._submittedDefault, options),
-      this.buildEvent('disabled', this._disabledDefault, options),
-      this.buildEvent('pendingStore', this._pendingStoreDefault, options),
-      this.buildEvent('validatorStore', this._validatorStoreDefault, options),
-      this.buildEvent('value', this._valueDefault, options),
-      this.buildEvent('resetComplete', undefined, options),
-    ];
-
-    const observable = from(state).pipe(
-      map(state => {
-        // This allows the same control to apply the state changes multiple
-        // times
-        (state as any).applied = [];
-        return state;
-      }),
-    );
-
-    if (options.asObservable) return observable;
-
-    observable.subscribe(this.source);
-  }
-
   setValidators(
     value:
       | ValidatorFn
@@ -879,9 +817,7 @@ export abstract class ControlBase<
     );
   }
 
-  replayState(
-    options: ControlEventOptions & { includeDefaults?: boolean } = {},
-  ) {
+  replayState(options: ControlEventOptions = {}) {
     const state: ControlEvent<string, any>[] = [
       this.buildEvent('touched', this.touched, options),
       this.buildEvent('changed', this.changed, options),
@@ -892,28 +828,6 @@ export abstract class ControlBase<
       this.buildEvent('validatorStore', this.validatorStore, options),
       this.buildEvent('errorsStore', this.errorsStore, options),
     ];
-
-    if (options.includeDefaults) {
-      state.push(
-        this.buildEvent('touchedDefault', this._touchedDefault, options),
-        this.buildEvent('changedDefault', this._changedDefault, options),
-        this.buildEvent('readonlyDefault', this._readonlyDefault, options),
-        this.buildEvent('submittedDefault', this._submittedDefault, options),
-        this.buildEvent('disabledDefault', this._disabledDefault, options),
-        this.buildEvent(
-          'pendingStoreDefault',
-          this._pendingStoreDefault,
-          options,
-        ),
-        this.buildEvent(
-          'validatorStoreDefault',
-          this._validatorStoreDefault,
-          options,
-        ),
-        // this.buildStateChange('asyncValidatorStoreDefault', this._asyncValidatorStoreDefault, options),
-        this.buildEvent('valueDefault', this._valueDefault, options),
-      );
-    }
 
     state.push(this.buildEvent('value', this.value, options));
 
@@ -1008,11 +922,6 @@ export abstract class ControlBase<
 
         return true;
       }
-      case 'valueDefault': {
-        event.stateChange = true;
-        this._valueDefault = event.value;
-        return true;
-      }
       case 'errors': {
         event.stateChange = true;
         if (event.value && Object.entries(event.value).length !== 0) {
@@ -1043,19 +952,9 @@ export abstract class ControlBase<
         this._submitted = event.value;
         return true;
       }
-      case 'submittedDefault': {
-        event.stateChange = true;
-        this._submittedDefault = event.value;
-        return true;
-      }
       case 'touched': {
         event.stateChange = true;
         this._touched = event.value;
-        return true;
-      }
-      case 'touchedDefault': {
-        event.stateChange = true;
-        this._touchedDefault = event.value;
         return true;
       }
       case 'changed': {
@@ -1063,29 +962,14 @@ export abstract class ControlBase<
         this._changed = event.value;
         return true;
       }
-      case 'changedDefault': {
-        event.stateChange = true;
-        this._changedDefault = event.value;
-        return true;
-      }
       case 'readonly': {
         event.stateChange = true;
         this._readonly = event.value;
         return true;
       }
-      case 'readonlyDefault': {
-        event.stateChange = true;
-        this._readonlyDefault = event.value;
-        return true;
-      }
       case 'disabled': {
         event.stateChange = true;
         this._disabled = event.value;
-        return true;
-      }
-      case 'disabledDefault': {
-        event.stateChange = true;
-        this._disabledDefault = event.value;
         return true;
       }
       case 'pending': {
@@ -1106,11 +990,6 @@ export abstract class ControlBase<
 
         this._pending = Array.from(this.pendingStore.values()).some(val => val);
 
-        return true;
-      }
-      case 'pendingStoreDefault': {
-        event.stateChange = true;
-        this._pendingStoreDefault = new Map(event.value);
         return true;
       }
       case 'validators': {
@@ -1142,11 +1021,6 @@ export abstract class ControlBase<
         );
 
         this.updateValidation(event);
-        return true;
-      }
-      case 'validatorStoreDefault': {
-        event.stateChange = true;
-        this._validatorStoreDefault = new Map(event.value);
         return true;
       }
     }

@@ -56,7 +56,6 @@ export class FormArray<
   D = any
 > extends ControlContainerBase<T, FormArrayValue<T>, D> {
   protected _controls: T;
-  protected _controlsDefault: T;
 
   constructor(
     controls: T = ([] as unknown) as T,
@@ -65,7 +64,6 @@ export class FormArray<
     super(extractValue<T>(controls), options);
 
     this._controls = (controls.slice() as unknown) as T;
-    this._controlsDefault = (controls.slice() as unknown) as T;
 
     this.setupSource();
   }
@@ -291,11 +289,6 @@ export class FormArray<
           }),
         );
 
-        return true;
-      }
-      case 'controlsDefault': {
-        event.stateChange = true;
-        this._controlsDefault = ([...event.value] as unknown) as T;
         return true;
       }
       case 'childStateChange': {

@@ -164,9 +164,7 @@ export class ExampleComponent {
     this.subscriptions.push(
       // here we set the accessor state to be identical to our
       // control's state
-      this.control
-        .replayState({ includeDefaults: true })
-        .subscribe(this.accessor.control.source),
+      this.control.replayState().subscribe(this.accessor.control.source),
       // then we subscribe the accessor to events in our control state
       this.control.events.subscribe(this.accessor.control.source),
       // we also subscribe our control to events in the accessor start
