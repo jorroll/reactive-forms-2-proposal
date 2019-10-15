@@ -146,14 +146,12 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
   }
 
   private cleanupInnerSubs() {
-    this.innerSubscriptions.forEach(sub => {
-      sub.unsubscribe();
+    this.innerSubscriptions.forEach(sub => sub.unsubscribe());
 
-      this.control.stateChange({
-        source: this.id,
-        type: 'ControlAccessor',
-        value: 'Cleanup',
-      });
+    this.control.stateChange({
+      source: this.id,
+      type: 'ControlAccessor',
+      value: 'Cleanup',
     });
 
     this.innerSubscriptions = [];
