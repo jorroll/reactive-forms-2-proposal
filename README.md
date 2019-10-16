@@ -307,6 +307,8 @@ class ExampleFourComponent implements OnInit {
 
 An earlier version of this proposal included an `asyncValidators` property on `AbstractControl` (similar to the current `ReactiveFormsModule`). This property only existed to increase the similarities between the new API and the old API. I decided to remove the `asyncValidators` property in favor of using external services which provide more user control.
 
+It's also worth noting that synchronous validation can also be handled via a service. In fact, doing so has the added advantage that you don't need to worry about someone else somehow removing your validator function from a control.
+
 ### `observe()`
 
 You can `observe()`/`observeChanges()` on any property. Because we know when any properties change, we can easily subscribe to anything via `control.observe('value')` or `control.observe('errors')` etc. The `observe()` method immediately returns the current value, as well as subscribes to all changes. If we just want changes to a property, we can use `control.observeChanges('value')` etc.
@@ -340,8 +342,24 @@ Here, we are subscribing to changes to the controls of `innerFormGroup`. Also no
 
 # Things not included
 
+Note: the blurbs below assume you are already familiar with the API in this proposal.
+
 ### reset()
 
 One of the issue areas which this proposal _used to_ address was around resetting a form control via `reset()`. See issues https://github.com/angular/angular/pull/20214, https://github.com/angular/angular/issues/19747, https://github.com/angular/angular/issues/15741, https://github.com/angular/angular/issues/19251 with a combined 54 upvotes at time of writing.
 
 To this end, most properties in this proposal's `AbstractControl` API used to store a default value. Calling `reset()` used those default values to reset the form control to its user specified default state. After using the API in this proposal for a bit though, I decided that `reset()` didn't make sense in practice. Head on over to issue [#4](https://github.com/thefliik/reactive-forms-2-proposal/issues/4) to learn why and/or give feedback.
+
+### asyncValidators
+
+While an earlier version of this proposal included an `asyncValidators` property (akin to the current ReactiveFormsModule's `asyncValidators` property), I decided to remove it
+
+The reasons why:
+
+1. My guess is that, in the vast majority of cases, async validation is already handled via a service.
+2. Async validation will usually want to _debounce_ requests in some way.
+3. I have a hard time imagining the situation where you want to _always_ run a generic, async function on every input change in order to perform validation.
+
+Given these reasons, it seemed optimal to simply make validation services the _de facto_ method for performing async validation.
+
+If you have a validation use case which is better handled via the ReactiveFormsModule's current `asyncValidators` syntax than via a service, I'd love to hear it!
