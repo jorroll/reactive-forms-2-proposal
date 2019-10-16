@@ -424,11 +424,11 @@ While being able to use services to validate controls is a big improvement, this
 
 For example:
 
-1. If a control is required, a [required] attribute is not automatically added to the appropriate element in the DOM.
-   1. Similarly, other validators should also include DOM changes (e.g. a maxLength validator should add a [maxlength] attribute for accessibility, there are ARIA attributes which should be added for accessibility, etc).
-   2. If you validate to make sure an input is a number, it's appropriate to add a type="number" attribute on the underlying <input>.
+1. If a control is required, a `[required]` attribute is not automatically added to the appropriate element in the DOM.
+   1. Similarly, other validators should also include DOM changes (e.g. a maxLength validator should add a `[maxlength]` attribute for accessibility, there are ARIA attributes which should be added for accessibility, etc).
+   2. If you validate to make sure an input is a number, it's appropriate to add a `type="number"` attribute on the underlying `<input>`.
 2. Generating and displaying error messages is much harder than it should be, for such a fundamental part a Forms API.
 
-Ultimately, I see these as failings of the current ValidatorFn / ValidationErrors API, and should be addressed in a fix to that API. Any such fix should be included in any ReactiveFormsModule2 (and I'm happy to add suitable ideas to this proposal), but at the moment this proposal doesn't include those changes. This is mainly because it allows the discussion to focus on the AbstractControl API, as well as because I don't currently have a great "fix" for the `ValidationErrors` API.
+Ultimately, I see these as failings of the current `ValidatorFn` / `ValidationErrors` API, and should be addressed in a fix to that API. Any such fix should be included in any ReactiveFormsModule2 (and I'm happy to add suitable ideas to this proposal), but at the moment this proposal doesn't include those changes. This is mainly because it allows the discussion to focus on the AbstractControl API, as well as because I don't currently have a great "fix" for the `ValidationErrors` API.
 
 Feedback/suggestions in this area is welcomed!
