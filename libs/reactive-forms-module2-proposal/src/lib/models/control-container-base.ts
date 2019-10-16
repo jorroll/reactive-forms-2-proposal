@@ -57,18 +57,19 @@ export abstract class ControlContainerBase<C, V, D> extends ControlBase<V, D>
   abstract markAllTouched(value: boolean, options?: ControlEventOptions): void;
 
   replayState(options: ControlEventOptions = {}) {
-    const state: ControlEvent<string, any>[] = [
-      this.buildEvent('controls', this.controls, options),
-    ];
+    const state: Array<
+      ControlEvent<string, any> & { stateChange?: boolean }
+    > = [this.buildEvent('controls', this.controls, options)];
 
     return concat(
       from(state).pipe(
-        map(state => {
+        map(event => {
           // we reset the applied array so that this saved
           // state change can be applied to the same control
           // multiple times
-          (state as any).applied = [];
-          return state;
+          (event as any).applied = [];
+          event.stateChange = true;
+          return event;
         }),
       ),
       super.replayState(options),

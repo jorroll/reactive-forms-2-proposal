@@ -86,7 +86,9 @@ export abstract class ControlBase<
       this.processEvent(event);
     }),
     share(),
-  ) as any) as Observable<ControlEvent<string, any> & { stateChange: boolean }>;
+  ) as any) as Observable<
+    ControlEvent<string, any> & { stateChange?: boolean }
+  >;
 
   protected _value: Value;
   get value() {
@@ -428,7 +430,7 @@ export abstract class ControlBase<
     return this.events.pipe(
       filter(
         ({ noEmit, stateChange }) =>
-          stateChange && (options.ignoreNoEmit || !noEmit),
+          !!stateChange && (options.ignoreNoEmit || !noEmit),
       ),
       // here we load the current value into the `distinctUntilChanged`
       // filter (and skip it) so that the first emission is a change.
@@ -660,7 +662,7 @@ export abstract class ControlBase<
     return this.events.pipe(
       filter(
         ({ noEmit, stateChange }) =>
-          stateChange && (options.ignoreNoEmit || !noEmit),
+          !!stateChange && (options.ignoreNoEmit || !noEmit),
       ),
       startWith({} as ControlEvent<string, any>),
       map(() =>
@@ -818,7 +820,9 @@ export abstract class ControlBase<
   }
 
   replayState(options: ControlEventOptions = {}) {
-    const state: ControlEvent<string, any>[] = [
+    const state: Array<
+      ControlEvent<string, any> & { stateChange?: boolean }
+    > = [
       this.buildEvent('touched', this.touched, options),
       this.buildEvent('changed', this.changed, options),
       this.buildEvent('readonly', this.readonly, options),
@@ -832,12 +836,13 @@ export abstract class ControlBase<
     state.push(this.buildEvent('value', this.value, options));
 
     return from(state).pipe(
-      map(state => {
+      map(event => {
         // we reset the applied array so that this saved
         // state change can be applied to the same control
         // multiple times
-        (state as any).applied = [];
-        return state;
+        (event as any).applied = [];
+        event.stateChange = true;
+        return event;
       }),
     );
   }
@@ -1023,9 +1028,13 @@ export abstract class ControlBase<
         this.updateValidation(event);
         return true;
       }
+      case 'data': {
+        event.stateChange = true;
+        this.data = event.value;
+        return true;
+      }
     }
 
-    event.stateChange = false;
     return false;
   }
 }

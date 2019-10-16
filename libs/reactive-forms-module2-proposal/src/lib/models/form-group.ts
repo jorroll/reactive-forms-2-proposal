@@ -101,7 +101,7 @@ export class FormGroup<
     this._sourceSubscription = merge(
       ...Object.entries(this.controls).map(([key, control]) =>
         concat(control.replayState(), control.events).pipe(
-          filter(({ stateChange }) => stateChange),
+          filter(({ stateChange }) => !!stateChange),
           map<ControlEvent<string, any>, ControlEvent<string, unknown>>(
             ({ applied, type, value, noEmit, meta }) => {
               const shared = {

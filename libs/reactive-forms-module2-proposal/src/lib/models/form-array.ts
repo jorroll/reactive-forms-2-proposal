@@ -1,4 +1,4 @@
-import { merge } from 'rxjs';
+import { merge, concat } from 'rxjs';
 import {
   AbstractControl,
   ControlEvent,
@@ -153,8 +153,8 @@ export class FormArray<
 
     this._sourceSubscription = merge(
       ...this.controls.map((control, index) =>
-        control.events.pipe(
-          filter(({ stateChange }) => stateChange),
+        concat(control.replayState(), control.events).pipe(
+          filter(({ stateChange }) => !!stateChange),
           map<ControlEvent<string, any>, ControlEvent<string, unknown>>(
             ({ applied, type, value, noEmit, meta }) => {
               const shared = {

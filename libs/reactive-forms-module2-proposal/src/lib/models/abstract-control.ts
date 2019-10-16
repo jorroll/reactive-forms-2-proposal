@@ -81,7 +81,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
 
   /** An observable of all events for this AbstractControl */
   abstract events: Observable<
-    ControlEvent<string, any> & { stateChange: boolean }
+    ControlEvent<string, any> & { stateChange?: boolean }
   >;
 
   abstract value: Value;
@@ -559,7 +559,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
    */
   abstract replayState(
     options?: ControlEventOptions,
-  ): Observable<ControlEvent<string, any>>;
+  ): Observable<ControlEvent<string, any> & { stateChange?: boolean }>;
 
   /**
    * This method can be overridden in classes like FormGroup to support retrieving child
