@@ -257,7 +257,7 @@ control.errors; // => { required: true }
 
 control.setErrors({ name: 'invalid' }, { source: 'myService' });
 
-control.errors; // => { required: true; name: 'invalid' }
+control.errors; // => { required: true, name: 'invalid' }
 
 control.setErrors(null);
 
