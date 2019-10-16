@@ -1,5 +1,4 @@
 import {
-  Input,
   OnDestroy,
   OnChanges,
   Directive,
@@ -8,11 +7,11 @@ import {
   SimpleChange,
   Renderer2,
   ElementRef,
+  forwardRef,
 } from '@angular/core';
-import { AbstractControl, FormControl } from '../models';
-import { ControlStateMapper, ControlValueMapper } from './interface';
-import { map, filter } from 'rxjs/operators';
-import { NgBaseDirective } from './base.directive';
+import { FormControl } from '../models';
+import { filter } from 'rxjs/operators';
+import { NG_CONTROL_DIRECTIVE } from './base.directive';
 import { resolveControlAccessor } from './util';
 import { ControlAccessor, NG_CONTROL_ACCESSOR } from '../accessors';
 import { NgControlDirective } from './control.directive';
@@ -20,6 +19,12 @@ import { NgControlDirective } from './control.directive';
 @Directive({
   selector: '[ngFormControl]:not([formControl])',
   exportAs: 'ngForm',
+  providers: [
+    {
+      provide: NG_CONTROL_DIRECTIVE,
+      useExisting: forwardRef(() => NgFormControlDirective),
+    },
+  ],
 })
 export class NgFormControlDirective extends NgControlDirective<FormControl>
   implements ControlAccessor, OnChanges, OnDestroy {

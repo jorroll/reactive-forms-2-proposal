@@ -1,6 +1,4 @@
 import {
-  Input,
-  OnDestroy,
   OnChanges,
   Directive,
   SimpleChange,
@@ -12,9 +10,8 @@ import {
   Optional,
 } from '@angular/core';
 import { FormGroup } from '../models';
-import { ControlStateMapper, ControlValueMapper } from './interface';
-import { map, filter } from 'rxjs/operators';
-import { NgBaseDirective } from './base.directive';
+import { filter } from 'rxjs/operators';
+import { NG_CONTROL_DIRECTIVE } from './base.directive';
 import { resolveControlContainerAccessor } from './util';
 import {
   NG_CONTROL_CONTAINER_ACCESSOR,
@@ -28,6 +25,10 @@ import { NgControlDirective } from './control.directive';
   selector: '[ngFormGroup]',
   exportAs: 'ngForm',
   providers: [
+    {
+      provide: NG_CONTROL_DIRECTIVE,
+      useExisting: forwardRef(() => NgFormGroupDirective),
+    },
     {
       provide: NG_CONTROL_CONTAINER_ACCESSOR,
       useExisting: forwardRef(() => NgFormGroupDirective),

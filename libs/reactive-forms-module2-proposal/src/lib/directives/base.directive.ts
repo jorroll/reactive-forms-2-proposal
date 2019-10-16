@@ -4,12 +4,17 @@ import {
   Renderer2,
   ElementRef,
   Input,
+  InjectionToken,
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { AbstractControl, ControlEvent } from '../models';
 import { ControlStateMapper, ControlValueMapper } from './interface';
 import { filter, map, startWith } from 'rxjs/operators';
 import { ControlAccessor } from '../accessors';
+
+export const NG_CONTROL_DIRECTIVE = new InjectionToken<
+  NgBaseDirective<AbstractControl>
+>('NG_CONTROL_DIRECTIVE');
 
 export abstract class NgBaseDirective<T extends AbstractControl>
   implements ControlAccessor<T>, OnChanges, OnDestroy {

@@ -11,6 +11,8 @@ import {
   Optional,
   Directive,
   HostListener,
+  OnDestroy,
+  OnInit,
 } from '@angular/core';
 import { ɵgetDOM as getDOM } from '@angular/platform-browser';
 import { filter } from 'rxjs/operators';
@@ -76,7 +78,9 @@ export const COMPOSITION_BUFFER_MODE = new InjectionToken<boolean>(
     },
   ],
 })
-export class DefaultValueAccessor implements ControlAccessor {
+// tslint:disable-next-line: directive-class-suffix
+export class DefaultValueAccessor
+  implements ControlAccessor, OnInit, OnDestroy {
   readonly control = new FormControl();
 
   private subscriptions: Subscription[] = [];

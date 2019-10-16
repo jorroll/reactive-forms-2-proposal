@@ -9,12 +9,13 @@ import {
   SkipSelf,
   Renderer2,
   ElementRef,
+  forwardRef,
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { AbstractControl, FormControl } from '../models';
 import { ControlValueMapper, ControlStateMapper } from './interface';
 import { map, filter } from 'rxjs/operators';
-import { NgBaseDirective } from './base.directive';
+import { NgBaseDirective, NG_CONTROL_DIRECTIVE } from './base.directive';
 import {
   ControlAccessor,
   NG_CONTROL_ACCESSOR,
@@ -26,6 +27,12 @@ import { resolveControlAccessor } from './util';
 @Directive({
   selector: '[ngFormControlName]',
   exportAs: 'ngForm',
+  providers: [
+    {
+      provide: NG_CONTROL_DIRECTIVE,
+      useExisting: forwardRef(() => NgFormControlNameDirective),
+    },
+  ],
 })
 export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
   implements ControlAccessor, OnChanges, OnDestroy {
