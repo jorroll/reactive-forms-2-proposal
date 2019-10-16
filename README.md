@@ -242,6 +242,60 @@ export class PeopleFormComponent implements ControlContainerAccessor {
 
 The ControlEvent API enables some cool features. A few of which I'll highlight here (also check out the examples demonstration on stackblitz):
 
+### errors
+
+While this API proposal doesn't focus on the ReactiveFormsModule's errors API, it does improve upon the current API by internally storing error objects keyed to a source.
+
+For example:
+
+```ts
+const control = new FormControl();
+
+control.setError({ required: true });
+
+control.errors; // => { required: true }
+
+control.setError({ name: 'invalid' }, { source: 'myService' });
+
+control.errors; // => { required: true; name: 'invalid' }
+
+control.setError(null);
+
+control.errors; // => { name: 'invalid' }
+
+control.setError(null, { source: 'myService' });
+
+control.errors; // => null
+```
+
+This allows different sources to add errors to a control, without needing to worry about those errors being overwritten by another source. When viewing `AbstractControl#errors`, all the errors are merged together into a single object. The validators and pending APIs work similarly (also storing their values keyed to a source).
+
+### pending
+
+Similar to the errors API, calls to `AbstractControl#markPending()` are keyed to a source. `AbstractControl#pending` will be true so long as any source is pending.
+
+For example:
+
+```ts
+const control = new FormControl();
+
+control.markPending(true);
+
+control.pending; // => true
+
+control.markPending(true, { source: 'myService' });
+
+control.pending; // => true
+
+control.markPending(false);
+
+control.pending; // => true
+
+control.markPending(false, { source: 'myService' });
+
+control.pending; // => false
+```
+
 ### Async Validation
 
 The control events API allows us to validate our controls using services! (also shown in Example Four of the stackblitz demo):
@@ -363,3 +417,18 @@ The reasons why:
 Given these reasons, it seemed optimal to simply make validation services the _de facto_ method for performing async validation.
 
 If you have a validation use case which is better handled via the ReactiveFormsModule's current `asyncValidators` syntax than via a service, I'd love to hear it!
+
+### A more wholistic improvement to the errors API
+
+While being able to use services to validate controls is a big improvement, this proposal doesn't address some other existing issues with the errors/validation API.
+
+For example:
+
+1. If a control is required, a [required] attribute is not automatically added to the appropriate element in the DOM.
+   1. Similarly, other validators should also include DOM changes (e.g. a maxLength validator should add a [maxlength] attribute for accessibility, there are ARIA attributes which should be added for accessibility, etc).
+   2. If you validate to make sure an input is a number, it's appropriate to add a type="number" attribute on the underlying <input>.
+2. Generating and displaying error messages is much harder than it should be, for such a fundamental part a Forms API.
+
+Ultimately, I see these as failings of the current ValidatorFn / ValidationErrors API, and should be addressed in a fix to that API. Any such fix should be included in any ReactiveFormsModule2 (and I'm happy to add suitable ideas to this proposal), but at the moment this proposal doesn't include those changes. This is mainly because it allows the discussion to focus on the AbstractControl API, as well as because I don't currently have a great "fix" for the `ValidationErrors` API.
+
+Feedback/suggestions in this area is welcomed!
