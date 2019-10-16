@@ -133,11 +133,9 @@ export abstract class ControlBase<
       : 'INVALID';
   }
 
-  focusChanges: Observable<
-    { [key: string]: any } | undefined
-  > = this.events.pipe(
+  focusChanges: Observable<boolean> = this.events.pipe(
     filter(({ type, noEmit }) => type === 'focus' && !noEmit),
-    map(state => state.meta),
+    map(state => state.value),
     share(),
   );
 
@@ -798,8 +796,10 @@ export abstract class ControlBase<
     }
   }
 
-  focus(options?: ControlEventOptions) {
-    this.source.next(this.buildEvent('focus', undefined, options));
+  focus(value?: boolean, options?: ControlEventOptions) {
+    this.source.next(
+      this.buildEvent('focus', value === undefined ? true : value, options),
+    );
   }
 
   setValidators(

@@ -109,11 +109,9 @@ export abstract class AbstractControl<Value = any, Data = any> {
 
   /**
    * focusChanges allows consumers to be notified when this
-   * form control should be "focused". The value of emissions
-   * is equal to the `meta` property passed when calling `focus()`
-   * (if any).
+   * form control should be focused or blurred.
    */
-  abstract focusChanges: Observable<{ [key: string]: any } | undefined>;
+  abstract focusChanges: Observable<boolean>;
 
   abstract readonly: boolean;
   abstract submitted: boolean;
@@ -540,7 +538,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
 
   abstract markDisabled(value: boolean, options?: ControlEventOptions): void;
 
-  abstract focus(options?: ControlEventOptions): void;
+  abstract focus(value?: boolean, options?: ControlEventOptions): void;
 
   abstract setValidators(
     value: ValidatorFn | ValidatorFn[] | null,
