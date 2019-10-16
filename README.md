@@ -251,19 +251,19 @@ For example:
 ```ts
 const control = new FormControl();
 
-control.setError({ required: true });
+control.setErrors({ required: true });
 
 control.errors; // => { required: true }
 
-control.setError({ name: 'invalid' }, { source: 'myService' });
+control.setErrors({ name: 'invalid' }, { source: 'myService' });
 
 control.errors; // => { required: true; name: 'invalid' }
 
-control.setError(null);
+control.setErrors(null);
 
 control.errors; // => { name: 'invalid' }
 
-control.setError(null, { source: 'myService' });
+control.setErrors(null, { source: 'myService' });
 
 control.errors; // => null
 ```
