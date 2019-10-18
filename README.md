@@ -34,13 +34,13 @@ interface ControlEvent<Type extends string, Value> {
 type ControlId = string | symbol;
 ```
 
-When you call a method like `AbstractControl#markTouched()`, that method simply constructs the appropriate StateChange object for you and emits that object from `sources`.
+When you call a method like `AbstractControl#markTouched()`, that method simply constructs the appropriate ControlEvent object for you and emits that object from `source`.
 
 _Figure 2:_
 
 ```ts
 abstract class AbstractControl<V = any, D = any> {
-  id: symbol;
+  id: ControlId;
 
   markTouched(value: boolean, options: ControlEventOptions = {}) {
     if (value !== this._touched) {
@@ -88,7 +88,7 @@ abstract class AbstractControl<V = any, D = any> {
 
 You'll notice that only events that haven't yet been applied to this `AbstractControl` are processed (i.e. `!event.applied.includes(this.id)`). This allows two AbstractControls to subscribe to each other's events without entering into an infinite loop.
 
-Additionally, if an event causes a state change for an AbstractControl, `processEvent` will add a `stateChange: true` boolean to the ControlEvent before emitting it from the `events` stream. If an event doesn't cause a state change, then `stateChange: false` will be added.
+Additionally, if an event causes a state change for an AbstractControl, `processEvent` will add a `stateChange: true` boolean to the ControlEvent before emitting it from the `events` stream.
 
 ### Extensibility
 
