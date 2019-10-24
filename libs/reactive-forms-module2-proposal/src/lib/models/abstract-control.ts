@@ -137,281 +137,182 @@ export abstract class AbstractControl<Value = any, Data = any> {
     return this;
   }
 
-  abstract observeChanges<A extends keyof this>(
+  abstract observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E],
+    G extends keyof this[A][B][C][D][E][F],
+    H extends keyof this[A][B][C][D][E][F][G],
+    I extends keyof this[A][B][C][D][E][F][G][H],
+    J extends keyof this[A][B][C][D][E][F][G][H][I],
+    K extends keyof this[A][B][C][D][E][F][G][H][I][J]
+  >(
     a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+    h: H,
+    i: I,
+    j: J,
+    k: K,
     options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A]>;
+  ): Observable<this[A][B][C][D][E][F][G][H][I][J][K] | undefined>;
+  abstract observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E],
+    G extends keyof this[A][B][C][D][E][F],
+    H extends keyof this[A][B][C][D][E][F][G],
+    I extends keyof this[A][B][C][D][E][F][G][H],
+    J extends keyof this[A][B][C][D][E][F][G][H][I]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+    h: H,
+    i: I,
+    j: J,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E][F][G][H][I][J] | undefined>;
+  abstract observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E],
+    G extends keyof this[A][B][C][D][E][F],
+    H extends keyof this[A][B][C][D][E][F][G],
+    I extends keyof this[A][B][C][D][E][F][G][H]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+    h: H,
+    i: I,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E][F][G][H][I] | undefined>;
+  abstract observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E],
+    G extends keyof this[A][B][C][D][E][F],
+    H extends keyof this[A][B][C][D][E][F][G]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+    h: H,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E][F][G][H] | undefined>;
+  abstract observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E],
+    G extends keyof this[A][B][C][D][E][F]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E][F][G] | undefined>;
+  abstract observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E][F] | undefined>;
+  abstract observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E] | undefined>;
+  abstract observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D] | undefined>;
+  abstract observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C] | undefined>;
   abstract observeChanges<A extends keyof this, B extends keyof this[A]>(
     a: A,
     b: B,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B] | undefined>;
-  abstract observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B]
-  >(
+  abstract observeChanges<A extends keyof this>(
     a: A,
-    b: B,
-    c: C,
     options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C] | undefined>;
-  abstract observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D] | undefined>;
-  abstract observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E] | undefined>;
-  abstract observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F] | undefined>;
-  abstract observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E],
-    G extends keyof this[A][B][C][D][E][F]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G] | undefined>;
-  abstract observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E],
-    G extends keyof this[A][B][C][D][E][F],
-    H extends keyof this[A][B][C][D][E][F][G]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G][H] | undefined>;
-  abstract observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E],
-    G extends keyof this[A][B][C][D][E][F],
-    H extends keyof this[A][B][C][D][E][F][G],
-    I extends keyof this[A][B][C][D][E][F][G][H]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G][H][I] | undefined>;
-  abstract observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E],
-    G extends keyof this[A][B][C][D][E][F],
-    H extends keyof this[A][B][C][D][E][F][G],
-    I extends keyof this[A][B][C][D][E][F][G][H],
-    J extends keyof this[A][B][C][D][E][F][G][H][I]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G][H][I][J] | undefined>;
-  abstract observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E],
-    G extends keyof this[A][B][C][D][E][F],
-    H extends keyof this[A][B][C][D][E][F][G],
-    I extends keyof this[A][B][C][D][E][F][G][H],
-    J extends keyof this[A][B][C][D][E][F][G][H][I],
-    K extends keyof this[A][B][C][D][E][F][G][H][I][J]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J,
-    k: K,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G][H][I][J][K] | undefined>;
+  ): Observable<this[A]>;
   abstract observeChanges<T = any>(
     props: string[],
     options?: { ignoreNoEmit?: boolean },
   ): Observable<T>;
 
-  abstract observe<A extends keyof this>(
-    a: A,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A]>;
-  abstract observe<A extends keyof this, B extends keyof this[A]>(
-    a: A,
-    b: B,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B] | undefined>;
-  abstract observe<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C] | undefined>;
-  abstract observe<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D] | undefined>;
-  abstract observe<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E] | undefined>;
-  abstract observe<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F] | undefined>;
-  abstract observe<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E],
-    G extends keyof this[A][B][C][D][E][F]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G] | undefined>;
-  abstract observe<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E],
-    G extends keyof this[A][B][C][D][E][F],
-    H extends keyof this[A][B][C][D][E][F][G]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G][H] | undefined>;
   abstract observe<
     A extends keyof this,
     B extends keyof this[A],
@@ -421,7 +322,9 @@ export abstract class AbstractControl<Value = any, Data = any> {
     F extends keyof this[A][B][C][D][E],
     G extends keyof this[A][B][C][D][E][F],
     H extends keyof this[A][B][C][D][E][F][G],
-    I extends keyof this[A][B][C][D][E][F][G][H]
+    I extends keyof this[A][B][C][D][E][F][G][H],
+    J extends keyof this[A][B][C][D][E][F][G][H][I],
+    K extends keyof this[A][B][C][D][E][F][G][H][I][J]
   >(
     a: A,
     b: B,
@@ -432,8 +335,10 @@ export abstract class AbstractControl<Value = any, Data = any> {
     g: G,
     h: H,
     i: I,
+    j: J,
+    k: K,
     options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G][H][I] | undefined>;
+  ): Observable<this[A][B][C][D][E][F][G][H][I][J][K] | undefined>;
   abstract observe<
     A extends keyof this,
     B extends keyof this[A],
@@ -467,9 +372,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     F extends keyof this[A][B][C][D][E],
     G extends keyof this[A][B][C][D][E][F],
     H extends keyof this[A][B][C][D][E][F][G],
-    I extends keyof this[A][B][C][D][E][F][G][H],
-    J extends keyof this[A][B][C][D][E][F][G][H][I],
-    K extends keyof this[A][B][C][D][E][F][G][H][I][J]
+    I extends keyof this[A][B][C][D][E][F][G][H]
   >(
     a: A,
     b: B,
@@ -480,10 +383,108 @@ export abstract class AbstractControl<Value = any, Data = any> {
     g: G,
     h: H,
     i: I,
-    j: J,
-    k: K,
     options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G][H][I][J][K] | undefined>;
+  ): Observable<this[A][B][C][D][E][F][G][H][I] | undefined>;
+  abstract observe<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E],
+    G extends keyof this[A][B][C][D][E][F],
+    H extends keyof this[A][B][C][D][E][F][G]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+    h: H,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E][F][G][H] | undefined>;
+  abstract observe<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E],
+    G extends keyof this[A][B][C][D][E][F]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E][F][G] | undefined>;
+  abstract observe<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E][F] | undefined>;
+  abstract observe<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E] | undefined>;
+
+  abstract observe<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D] | undefined>;
+  abstract observe<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C] | undefined>;
+  abstract observe<A extends keyof this, B extends keyof this[A]>(
+    a: A,
+    b: B,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B] | undefined>;
+  abstract observe<A extends keyof this>(
+    a: A,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A]>;
   abstract observe<T = any>(
     props: string[],
     options?: { ignoreNoEmit?: boolean },

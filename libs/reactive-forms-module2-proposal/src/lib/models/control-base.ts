@@ -219,105 +219,6 @@ export abstract class ControlBase<
     this.updateValidation();
   }
 
-  observeChanges<A extends keyof this>(
-    a: A,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A]>;
-  observeChanges<A extends keyof this, B extends keyof this[A]>(
-    a: A,
-    b: B,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B] | undefined>;
-  observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C] | undefined>;
-  observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D] | undefined>;
-  observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E] | undefined>;
-  observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F] | undefined>;
-  observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E],
-    G extends keyof this[A][B][C][D][E][F]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G] | undefined>;
-  observeChanges<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E],
-    G extends keyof this[A][B][C][D][E][F],
-    H extends keyof this[A][B][C][D][E][F][G]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G][H] | undefined>;
   observeChanges<
     A extends keyof this,
     B extends keyof this[A],
@@ -327,7 +228,9 @@ export abstract class ControlBase<
     F extends keyof this[A][B][C][D][E],
     G extends keyof this[A][B][C][D][E][F],
     H extends keyof this[A][B][C][D][E][F][G],
-    I extends keyof this[A][B][C][D][E][F][G][H]
+    I extends keyof this[A][B][C][D][E][F][G][H],
+    J extends keyof this[A][B][C][D][E][F][G][H][I],
+    K extends keyof this[A][B][C][D][E][F][G][H][I][J]
   >(
     a: A,
     b: B,
@@ -338,8 +241,10 @@ export abstract class ControlBase<
     g: G,
     h: H,
     i: I,
+    j: J,
+    k: K,
     options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G][H][I] | undefined>;
+  ): Observable<this[A][B][C][D][E][F][G][H][I][J][K] | undefined>;
   observeChanges<
     A extends keyof this,
     B extends keyof this[A],
@@ -373,9 +278,7 @@ export abstract class ControlBase<
     F extends keyof this[A][B][C][D][E],
     G extends keyof this[A][B][C][D][E][F],
     H extends keyof this[A][B][C][D][E][F][G],
-    I extends keyof this[A][B][C][D][E][F][G][H],
-    J extends keyof this[A][B][C][D][E][F][G][H][I],
-    K extends keyof this[A][B][C][D][E][F][G][H][I][J]
+    I extends keyof this[A][B][C][D][E][F][G][H]
   >(
     a: A,
     b: B,
@@ -386,10 +289,107 @@ export abstract class ControlBase<
     g: G,
     h: H,
     i: I,
-    j: J,
-    k: K,
     options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G][H][I][J][K] | undefined>;
+  ): Observable<this[A][B][C][D][E][F][G][H][I] | undefined>;
+  observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E],
+    G extends keyof this[A][B][C][D][E][F],
+    H extends keyof this[A][B][C][D][E][F][G]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+    h: H,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E][F][G][H] | undefined>;
+  observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E],
+    G extends keyof this[A][B][C][D][E][F]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E][F][G] | undefined>;
+  observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E][F] | undefined>;
+  observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E] | undefined>;
+  observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D] | undefined>;
+  observeChanges<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C] | undefined>;
+  observeChanges<A extends keyof this, B extends keyof this[A]>(
+    a: A,
+    b: B,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B] | undefined>;
+  observeChanges<A extends keyof this>(
+    a: A,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A]>;
   observeChanges<T = any>(
     props: string[],
     options?: { ignoreNoEmit?: boolean },
@@ -451,105 +451,6 @@ export abstract class ControlBase<
     );
   }
 
-  observe<A extends keyof this>(
-    a: A,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A]>;
-  observe<A extends keyof this, B extends keyof this[A]>(
-    a: A,
-    b: B,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B] | undefined>;
-  observe<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C] | undefined>;
-  observe<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D] | undefined>;
-  observe<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E] | undefined>;
-  observe<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F] | undefined>;
-  observe<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E],
-    G extends keyof this[A][B][C][D][E][F]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G] | undefined>;
-  observe<
-    A extends keyof this,
-    B extends keyof this[A],
-    C extends keyof this[A][B],
-    D extends keyof this[A][B][C],
-    E extends keyof this[A][B][C][D],
-    F extends keyof this[A][B][C][D][E],
-    G extends keyof this[A][B][C][D][E][F],
-    H extends keyof this[A][B][C][D][E][F][G]
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G][H] | undefined>;
   observe<
     A extends keyof this,
     B extends keyof this[A],
@@ -559,7 +460,9 @@ export abstract class ControlBase<
     F extends keyof this[A][B][C][D][E],
     G extends keyof this[A][B][C][D][E][F],
     H extends keyof this[A][B][C][D][E][F][G],
-    I extends keyof this[A][B][C][D][E][F][G][H]
+    I extends keyof this[A][B][C][D][E][F][G][H],
+    J extends keyof this[A][B][C][D][E][F][G][H][I],
+    K extends keyof this[A][B][C][D][E][F][G][H][I][J]
   >(
     a: A,
     b: B,
@@ -570,8 +473,10 @@ export abstract class ControlBase<
     g: G,
     h: H,
     i: I,
+    j: J,
+    k: K,
     options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G][H][I] | undefined>;
+  ): Observable<this[A][B][C][D][E][F][G][H][I][J][K] | undefined>;
   observe<
     A extends keyof this,
     B extends keyof this[A],
@@ -605,9 +510,7 @@ export abstract class ControlBase<
     F extends keyof this[A][B][C][D][E],
     G extends keyof this[A][B][C][D][E][F],
     H extends keyof this[A][B][C][D][E][F][G],
-    I extends keyof this[A][B][C][D][E][F][G][H],
-    J extends keyof this[A][B][C][D][E][F][G][H][I],
-    K extends keyof this[A][B][C][D][E][F][G][H][I][J]
+    I extends keyof this[A][B][C][D][E][F][G][H]
   >(
     a: A,
     b: B,
@@ -618,10 +521,107 @@ export abstract class ControlBase<
     g: G,
     h: H,
     i: I,
-    j: J,
-    k: K,
     options?: { ignoreNoEmit?: boolean },
-  ): Observable<this[A][B][C][D][E][F][G][H][I][J][K] | undefined>;
+  ): Observable<this[A][B][C][D][E][F][G][H][I] | undefined>;
+  observe<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E],
+    G extends keyof this[A][B][C][D][E][F],
+    H extends keyof this[A][B][C][D][E][F][G]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+    h: H,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E][F][G][H] | undefined>;
+  observe<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E],
+    G extends keyof this[A][B][C][D][E][F]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E][F][G] | undefined>;
+  observe<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D],
+    F extends keyof this[A][B][C][D][E]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E][F] | undefined>;
+  observe<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C],
+    E extends keyof this[A][B][C][D]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D][E] | undefined>;
+  observe<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B],
+    D extends keyof this[A][B][C]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C][D] | undefined>;
+  observe<
+    A extends keyof this,
+    B extends keyof this[A],
+    C extends keyof this[A][B]
+  >(
+    a: A,
+    b: B,
+    c: C,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B][C] | undefined>;
+  observe<A extends keyof this, B extends keyof this[A]>(
+    a: A,
+    b: B,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A][B] | undefined>;
+  observe<A extends keyof this>(
+    a: A,
+    options?: { ignoreNoEmit?: boolean },
+  ): Observable<this[A]>;
   observe<T = any>(
     props: string[],
     options?: { ignoreNoEmit?: boolean },
