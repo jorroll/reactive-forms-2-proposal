@@ -8,6 +8,7 @@ import {
   Renderer2,
   ElementRef,
   Optional,
+  Input,
 } from '@angular/core';
 import { FormGroup } from '../models';
 import { filter } from 'rxjs/operators';
@@ -20,6 +21,7 @@ import {
   ControlAccessor,
 } from '../accessors';
 import { NgControlDirective } from './control.directive';
+import { ControlStateMapper, ControlValueMapper } from './interface';
 
 @Directive({
   selector: '[ngFormGroup]',
@@ -37,6 +39,12 @@ import { NgControlDirective } from './control.directive';
 })
 export class NgFormGroupDirective extends NgControlDirective<FormGroup>
   implements OnChanges {
+  @Input('ngFormGroup') providedControl!: FormGroup;
+  @Input('ngFormGroupStateMapper')
+  stateMapper: ControlStateMapper | undefined;
+  @Input('ngFormGroupValueMapper')
+  valueMapper: ControlValueMapper | undefined;
+
   readonly control = new FormGroup();
   readonly accessor: ControlContainerAccessor | null;
 

@@ -8,11 +8,9 @@ import { ControlAccessor } from '../accessors';
 export abstract class NgControlDirective<T extends AbstractControl>
   extends NgBaseDirective<T>
   implements ControlAccessor, OnChanges, OnDestroy {
-  @Input('ngFormControl') providedControl!: T;
-  @Input('ngFormControlStateMapper')
-  stateMapper?: ControlStateMapper;
-  @Input('ngFormControlValueMapper')
-  valueMapper?: ControlValueMapper;
+  abstract providedControl: T;
+  abstract stateMapper: ControlStateMapper | undefined;
+  abstract valueMapper: ControlValueMapper | undefined;
 
   abstract readonly control: T;
 

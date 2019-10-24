@@ -8,6 +8,7 @@ import {
   Renderer2,
   ElementRef,
   forwardRef,
+  Input,
 } from '@angular/core';
 import { FormControl } from '../models';
 import { filter } from 'rxjs/operators';
@@ -15,6 +16,7 @@ import { NG_CONTROL_DIRECTIVE } from './base.directive';
 import { resolveControlAccessor } from './util';
 import { ControlAccessor, NG_CONTROL_ACCESSOR } from '../accessors';
 import { NgControlDirective } from './control.directive';
+import { ControlStateMapper, ControlValueMapper } from './interface';
 
 @Directive({
   selector: '[ngFormControl]:not([formControl])',
@@ -28,6 +30,12 @@ import { NgControlDirective } from './control.directive';
 })
 export class NgFormControlDirective extends NgControlDirective<FormControl>
   implements ControlAccessor, OnChanges, OnDestroy {
+  @Input('ngFormControl') providedControl!: FormControl;
+  @Input('ngFormControlStateMapper')
+  stateMapper: ControlStateMapper | undefined;
+  @Input('ngFormControlValueMapper')
+  valueMapper: ControlValueMapper | undefined;
+
   readonly control = new FormControl();
   readonly accessor: ControlAccessor;
 
