@@ -1,40 +1,55 @@
 import { merge, concat } from 'rxjs';
-import { map, filter } from 'rxjs/operators';
+import { map, filter, tap } from 'rxjs/operators';
 import {
   AbstractControl,
-  AbstractControlValue,
   ControlEvent,
   ControlEventOptions,
+  ProcessedControlEvent,
 } from './abstract-control';
 import { IControlBaseArgs } from './control-base';
 import { ControlContainerBase } from './control-container-base';
+import { ControlContainer } from './control-container';
 
-export type IFormGroupArgs<V, D> = IControlBaseArgs<V, D>;
+export type IFormGroupArgs<D> = IControlBaseArgs<D>;
 
-type FormGroupValue<T> = {
-  readonly [P in keyof T]: AbstractControlValue<T[P]>;
+export type FormGroupValue<T extends { [key: string]: AbstractControl }> = {
+  [P in keyof T]: T[P]['value'];
 };
+
+export type FormGroupEnabledValue<
+  T extends { [key: string]: AbstractControl }
+> = Partial<
+  {
+    [P in keyof T]: T[P] extends ControlContainer
+      ? T[P]['enabledValue']
+      : T[P]['value'];
+  }
+>;
 
 export class FormGroup<
   T extends { readonly [key: string]: AbstractControl<any, any> } = {
-    readonly [key: string]: AbstractControl<any, any>;
+    [key: string]: AbstractControl<any, any>;
   },
   D = any
-> extends ControlContainerBase<T, FormGroupValue<T>, D> {
+> extends ControlContainerBase<
+  T,
+  FormGroupValue<T>,
+  FormGroupEnabledValue<T>,
+  D
+> {
   protected _controls: T;
 
-  constructor(
-    controls: T = {} as T,
-    options?: IFormGroupArgs<FormGroupValue<T>, D>,
-  ) {
+  constructor(controls: T = {} as T, options?: IFormGroupArgs<D>) {
     super(extractValue<T>(controls), options);
 
     this._controls = { ...controls };
+    this._normalizedControls = Object.entries(this._controls);
+    this._enabledValue = extractEnabledValue(controls);
 
     this.setupSource();
   }
 
-  get<A extends keyof T>(a: A): T[A] | null;
+  get<A extends keyof T>(a: A): T[A];
   get<A extends AbstractControl = AbstractControl>(...args: any[]): A | null;
   get<A extends AbstractControl = AbstractControl>(...args: any[]): A | null {
     return super.get(...args);
@@ -45,7 +60,7 @@ export class FormGroup<
     options: ControlEventOptions = {},
   ) {
     Object.entries(value).forEach(([key, val]) => {
-      this.controls[key].patchValue(val, options);
+      this._controls[key].patchValue(val, options);
     });
   }
 
@@ -67,7 +82,7 @@ export class FormGroup<
     control: T[N],
     options?: ControlEventOptions,
   ) {
-    if (this.controls[name]) return;
+    if (this._controls[name]) return;
 
     const value = {
       ...this._controls,
@@ -78,7 +93,7 @@ export class FormGroup<
   }
 
   removeControl(name: keyof T, options?: ControlEventOptions) {
-    if (!this.controls[name]) return;
+    if (!this._controls[name]) return;
 
     const value = Object.fromEntries(
       Object.entries(this._controls).filter(([key]) => key !== name),
@@ -87,131 +102,26 @@ export class FormGroup<
     this.source.next(this.buildEvent('controls', value, options));
   }
 
-  markAllTouched(value: boolean, options: ControlEventOptions = {}) {
-    Object.values(this._controls).forEach(control => {
-      control.markTouched(value, options);
-    });
-  }
-
-  protected setupSource() {
-    if (this._sourceSubscription) {
-      this._sourceSubscription.unsubscribe();
-    }
-
-    this._sourceSubscription = merge(
-      ...Object.entries(this.controls).map(([key, control]) =>
-        concat(control.replayState(), control.events).pipe(
-          filter(({ stateChange }) => !!stateChange),
-          map<ControlEvent<string, any>, ControlEvent<string, unknown>>(
-            ({ applied, type, value, noEmit, meta }) => {
-              const shared = {
-                source: this.id,
-                applied,
-                type,
-                noEmit,
-                meta,
-              };
-
-              switch (type) {
-                case 'value': {
-                  return {
-                    ...shared,
-                    value: {
-                      ...this.value,
-                      [key]: value,
-                    },
-                    skipShapeValidation: true,
-                    skipControls: true,
-                  } as ControlEvent<string, FormGroupValue<T>>;
-                }
-                case 'disabled': {
-                  return {
-                    ...shared,
-                    value:
-                      value &&
-                      Object.values(this.controls).every(ctrl => ctrl.disabled),
-                  };
-                }
-                case 'touched': {
-                  return {
-                    ...shared,
-                    value:
-                      value ||
-                      Object.values(this.controls).some(ctrl => ctrl.touched),
-                  };
-                }
-                case 'changed': {
-                  return {
-                    ...shared,
-                    value:
-                      value ||
-                      Object.values(this.controls).some(ctrl => ctrl.changed),
-                  };
-                }
-                case 'pending': {
-                  return {
-                    ...shared,
-                    value:
-                      value ||
-                      Object.values(this.controls).some(ctrl => ctrl.pending),
-                  };
-                }
-                case 'submitted': {
-                  return {
-                    ...shared,
-                    value:
-                      value &&
-                      Object.values(this.controls).every(
-                        ctrl => ctrl.submitted,
-                      ),
-                  };
-                }
-                case 'readonly': {
-                  return {
-                    ...shared,
-                    value:
-                      value &&
-                      Object.values(this.controls).every(
-                        ctrl => ctrl.submitted,
-                      ),
-                  };
-                }
-                default: {
-                  // We emit this noop state change so that
-                  // `observe()` calls focused on nested children properties
-                  // emit properly
-                  return {
-                    source: this.id,
-                    applied,
-                    type: 'childStateChange',
-                    value: undefined,
-                  };
-                }
-              }
-            },
-          ),
-        ),
-      ),
-    ).subscribe(this.source);
-  }
-
-  protected validateValueShape(value: FormGroupValue<T>) {
+  protected validateValueShape(value: FormGroupValue<T>, eventId: number) {
     const error = () => {
       console.error(
-        'FormGroup incoming value, current controls',
+        `FormGroup ControlEvent #${eventId}`,
+        `incoming value:`,
         value,
-        this.controls,
+        'current controls:',
+        this._controls,
+        this,
       );
 
       throw new Error(
-        `FormGroup "value" StateChange must have the ` +
+        `FormGroup "value" ControlEvent #${eventId} must have the ` +
           `same shape as the FormGroup's controls`,
       );
     };
 
     if (value === null || value === undefined) error();
 
-    const keys = Object.keys(this.controls || {});
+    const keys = Object.keys(this._controls || {});
     const providedKeys = Object.keys(value);
 
     if (
@@ -222,26 +132,34 @@ export class FormGroup<
     }
   }
 
-  protected processEvent(event: ControlEvent<string, any>) {
+  protected processValue() {
+    return extractValue<T>((this._controls || {}) as T);
+  }
+
+  protected processEnabledValue() {
+    return extractEnabledValue<T>((this._controls || {}) as T);
+  }
+
+  protected processEvent(event: ProcessedControlEvent<string, any>) {
     switch (event.type) {
       case 'value': {
         event.stateChange = true;
-        if (!event.skipShapeValidation) {
-          this.validateValueShape(event.value);
-        }
 
-        if (!event.skipControls) {
-          Object.entries(event.value).forEach(([key, value]) => {
-            this.controls[key].source.next({
-              ...event,
-              value,
-            });
+        this.validateValueShape(event.value, event.id);
+
+        Object.entries(event.value).forEach(([key, value]) => {
+          // `...event` includes the `applied` array (so these
+          // events won't trigger new updates to this FormGroup).
+          this._controls[key].source.next({
+            ...event,
+            value,
           });
-        }
+        });
 
         // We extract the value from the controls in case the controls
         // themselves change the value
-        this._value = extractValue<T>((this.controls || {}) as T);
+        this._value = this.processValue();
+        this._enabledValue = this.processEnabledValue();
         this.updateValidation(event);
 
         return true;
@@ -249,36 +167,55 @@ export class FormGroup<
       case 'controls': {
         event.stateChange = true;
         this._controls = { ...event.value };
-
+        this._normalizedControls = Object.entries(this._controls);
+        this._size = Object.values(this._controls).length;
         this.setupSource();
-
-        this.source.next(
-          this.buildEvent('value', extractValue<T>(this.controls), event, {
-            skipControls: true,
-            skipShapeValidation: true,
-          }),
-        );
-
         return true;
       }
-      case 'childStateChange': {
-        event.stateChange = true;
-        return true;
+      case 'childEvent': {
+        return this.processChildEvent(event);
       }
     }
 
     return super.processEvent(event);
   }
+
+  protected processChildEvent(
+    parentEvent: ProcessedControlEvent<string, any>,
+  ): boolean {
+    const event = parentEvent.value;
+
+    switch (event.type) {
+      case 'value': {
+        parentEvent.stateChange = true;
+        this._value = this.processValue();
+        this._enabledValue = this.processEnabledValue();
+        this.updateValidation(event);
+        return true;
+      }
+    }
+
+    return super.processChildEvent(parentEvent);
+  }
 }
 
-function extractValue<T extends { [key: string]: any }>(
+function extractEnabledValue<T extends { [key: string]: AbstractControl }>(
   obj: T,
-): FormGroupValue<T>;
-function extractValue<T extends { [key: string]: any }>(
-  obj: Partial<T>,
-): Partial<FormGroupValue<T>>;
-function extractValue<T extends { [key: string]: any }>(obj: T) {
+) {
   return Object.fromEntries(
-    Object.entries(obj).map(([key, control]) => [key, control.value]),
-  );
+    Object.entries(obj)
+      .filter(([_, ctrl]) => ctrl.enabled)
+      .map(([key, ctrl]) => [
+        key,
+        ControlContainer.isControlContainer(ctrl)
+          ? ctrl.enabledValue
+          : ctrl.value,
+      ]),
+  ) as FormGroupEnabledValue<T>;
+}
+
+function extractValue<T extends { [key: string]: AbstractControl }>(obj: T) {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, ctrl]) => [key, ctrl.value]),
+  ) as FormGroupValue<T>;
 }

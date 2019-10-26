@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
-import { FormControl } from 'reactive-forms-module2-proposal';
+import { FormControl, FormGroup } from 'reactive-forms-module2-proposal';
+import { filter } from 'rxjs/operators';
 
 @Component({
   selector: 'app-example-one',

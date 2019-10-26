@@ -6,6 +6,8 @@ import {
   ControlSource,
   ControlEvent,
   ControlEventOptions,
+  DeepReadonly,
+  ProcessedControlEvent,
 } from './abstract-control';
 import {
   filter,
@@ -17,12 +19,12 @@ import {
   shareReplay,
   skip,
 } from 'rxjs/operators';
-import { Observable, from } from 'rxjs';
+import { Observable, from, merge } from 'rxjs';
 
 export type ControlBaseValue<T> = T extends ControlBase<infer V, any> ? V : any;
 export type ControlBaseData<T> = T extends ControlBase<any, infer D> ? D : any;
 
-export interface IControlBaseArgs<Value = any, Data = any> {
+export interface IControlBaseArgs<Data = any> {
   data?: Data;
   validators?:
     | ValidatorFn
@@ -63,12 +65,14 @@ export function composeValidators(
 export abstract class ControlBase<
   Value = any,
   Data = any
-> extends AbstractControl<Value, Data> {
+> implements AbstractControl<Value, Data> {
+  id: ControlId = Symbol(`control-${AbstractControl.id++}`);
+
   data: Data;
 
   source = new ControlSource<ControlEvent<string, any>>();
 
-  events = (this.source.pipe(
+  events = (this.source as any as Observable<ProcessedControlEvent<string, any>>).pipe(
     filter(
       // make sure we don't process an event we already processed
       event => !event.applied.includes(this.id),
@@ -81,18 +85,20 @@ export abstract class ControlBase<
       // It's important that we `push()` the new ID in to keep the same
       // array reference
       event.applied.push(this.id);
+      if (!event.meta) event.meta = {};
+      if (!Number.isInteger(event.id)) {
+        event.id = AbstractControl.eventId++;
+      }
 
       // processEvent adds the `stateChange` property
       this.processEvent(event);
     }),
     share(),
-  ) as any) as Observable<
-    ControlEvent<string, any> & { stateChange?: boolean }
-  >;
+  );
 
   protected _value: Value;
   get value() {
-    return this._value;
+    return this._value as DeepReadonly<Value>;
   }
 
   protected _errors: ValidationErrors | null = null;
@@ -109,13 +115,18 @@ export abstract class ControlBase<
   get disabled() {
     return this._disabled;
   }
-
-  get valid() {
-    return !this.errors;
+  get enabled() {
+    return !this._disabled;
   }
 
+  // this exists as it's own property to simplify
+  // the ControlContainer implementation
+  protected _invalid = false;
+  get valid() {
+    return !this._invalid;
+  }
   get invalid() {
-    return !!this.errors;
+    return this._invalid;
   }
 
   pendingStore: ReadonlyMap<ControlId, true> = new Map<ControlId, true>();
@@ -127,8 +138,8 @@ export abstract class ControlBase<
 
   get status() {
     // prettier-ignore
-    return this.disabled ? 'DISABLED'
-      : this.pending ? 'PENDING'
+    return this._disabled ? 'DISABLED'
+      : this._pending ? 'PENDING'
       : this.valid ? 'VALID'
       : 'INVALID';
   }
@@ -174,8 +185,7 @@ export abstract class ControlBase<
     return this._validator;
   }
 
-  constructor(value?: Value, options: IControlBaseArgs<Value, Data> = {}) {
-    super();
+  constructor(value?: Value, options: IControlBaseArgs<Data> = {}) {
     if (options.id) this.id = options.id;
 
     this.data = options.data as Data;
@@ -819,27 +829,27 @@ export abstract class ControlBase<
     );
   }
 
-  replayState(options: ControlEventOptions = {}) {
-    const state: Array<
-      ControlEvent<string, any> & { stateChange?: boolean }
-    > = [
-      this.buildEvent('touched', this.touched, options),
-      this.buildEvent('changed', this.changed, options),
-      this.buildEvent('readonly', this.readonly, options),
-      this.buildEvent('submitted', this.submitted, options),
-      this.buildEvent('disabled', this.disabled, options),
+  replayState(options: ControlEventOptions = {}): Observable<
+    ProcessedControlEvent<string, any>
+  > {
+    const state = [
+      this.buildEvent('touched', this._touched, options),
+      this.buildEvent('changed', this._changed, options),
+      this.buildEvent('readonly', this._readonly, options),
+      this.buildEvent('submitted', this._submitted, options),
+      this.buildEvent('disabled', this._disabled, options),
       this.buildEvent('pendingStore', this.pendingStore, options),
       this.buildEvent('validatorStore', this.validatorStore, options),
       this.buildEvent('errorsStore', this.errorsStore, options),
+      this.buildEvent('value', this._value, options),
     ];
-
-    state.push(this.buildEvent('value', this.value, options));
 
     return from(state).pipe(
       map(event => {
         // we reset the applied array so that this saved
         // state change can be applied to the same control
         // multiple times
+        event.id = AbstractControl.eventId++;
         (event as any).applied = [];
         event.stateChange = true;
         return event;
@@ -847,61 +857,43 @@ export abstract class ControlBase<
     );
   }
 
+  /**
+   * A convenience method for emitting an arbitrary control event.
+   */
+  emitEvent<T extends string, V>(
+    event: Pick<ControlEvent<T, V>, 'type' | 'value'> &
+      Partial<ControlEvent<T, V>>,
+  ): void {
+    this.source.next({
+      source: this.id,
+      applied: [],
+      ...event,
+    });
+  }
+
+  [AbstractControl.ABSTRACT_CONTROL_INTERFACE]() {
+    return this;
+  }
+
   protected buildEvent<T extends string, V>(
     type: T,
     value: V,
     { noEmit, meta, source }: ControlEventOptions = {},
     custom: { [key: string]: any } = {},
-  ): ControlEvent<T, V> {
+  ): ProcessedControlEvent<string, any> {
     return {
+      id: AbstractControl.eventId++,
       source: source || this.id,
       applied: [],
       type,
       value,
       noEmit,
-      meta,
+      meta: meta || {},
       ...custom,
     };
   }
 
-  protected updateValidation({ noEmit, meta }: ControlEventOptions = {}) {
-    // Validation lifecycle hook
-    this.emitEvent({
-      type: 'validation',
-      value: 'internalStart',
-      controlValue: this.value,
-      noEmit,
-      meta,
-    });
-
-    const validationResult: (Readonly<ValidationErrors>) | null = this.validator
-      ? this.validator(this)
-      : null;
-
-    this.setErrors(validationResult, { noEmit, meta });
-
-    // Validation lifecycle hook
-    this.emitEvent({
-      type: 'validation',
-      value: 'internalEnd',
-      controlValue: this.value,
-      validationResult,
-      noEmit,
-      meta,
-    });
-
-    // Validation lifecycle hook
-    this.emitEvent({
-      type: 'validation',
-      value: 'end',
-      controlValue: this.value,
-      controlValid: this.valid,
-      noEmit,
-      meta,
-    });
-  }
-
-  private processErrors() {
+  protected processErrors() {
     return Array.from(this.errorsStore.values()).reduce(
       (prev, curr) => {
         if (!curr) return prev;
@@ -912,13 +904,75 @@ export abstract class ControlBase<
     );
   }
 
+  protected processInvalid() {
+    return !!this._errors;
+  }
+
+  protected updateValidation({noEmit, meta, source}: ControlEventOptions = {}) {
+    // Validation lifecycle hook
+    this.source.next(
+      this.buildEvent(
+        'validation',
+        'start',
+        {noEmit, meta},
+        { controlValue: this._value }
+      )
+    );
+
+    const errors: (Readonly<ValidationErrors>) | null = this.validator
+      ? this.validator(this)
+      : null;
+
+    if (errors && Object.entries(errors).length !== 0) {
+      (this.errorsStore as Map<ControlId, ValidationErrors>).set(
+        source || this.id,
+        errors,
+      );
+    } else {
+      (this.errorsStore as Map<ControlId, ValidationErrors>).delete(
+        source || this.id,
+      );
+    }
+
+    this._errors = this.processErrors();
+    this._invalid = this.processInvalid();
+
+    // Validation lifecycle hook
+    this.source.next(
+      this.buildEvent(
+        'validation',
+        'internalComplete',
+        {noEmit, meta},
+        { 
+          controlValue: this._value,
+          validationResult: errors,
+        }
+      )
+    );
+
+    // Validation lifecycle hook
+    this.source.next(
+      this.buildEvent(
+        'validation',
+        'end',
+        {noEmit, meta},
+        { 
+          controlValue: this._value,
+          controlValid: this.valid,
+        }
+      )
+    );
+  }
+
   /**
    * Processes a control event. If the event is recognized by this control,
    * `processEvent()` will return `true`. Otherwise, `false` is returned.
+   * 
+   * In general, ControlEvents should not emit additional ControlEvents
    */
   protected processEvent(
-    event: ControlEvent<string, any> & { stateChange?: boolean },
-  ) {
+    event: ProcessedControlEvent<string, any>,
+  ): boolean {
     switch (event.type) {
       case 'value': {
         event.stateChange = true;
@@ -929,6 +983,7 @@ export abstract class ControlBase<
       }
       case 'errors': {
         event.stateChange = true;
+
         if (event.value && Object.entries(event.value).length !== 0) {
           (this.errorsStore as Map<ControlId, ValidationErrors>).set(
             event.source,
@@ -941,7 +996,7 @@ export abstract class ControlBase<
         }
 
         this._errors = this.processErrors();
-
+        this._invalid = this.processInvalid();
         return true;
       }
       case 'errorsStore': {
@@ -949,7 +1004,7 @@ export abstract class ControlBase<
         this.errorsStore = new Map(event.value);
 
         this._errors = this.processErrors();
-
+        this._invalid = this.processInvalid();
         return true;
       }
       case 'submitted': {
@@ -979,6 +1034,7 @@ export abstract class ControlBase<
       }
       case 'pending': {
         event.stateChange = true;
+
         if (event.value) {
           (this.pendingStore as Map<ControlId, true>).set(event.source, true);
         } else {
@@ -999,6 +1055,7 @@ export abstract class ControlBase<
       }
       case 'validators': {
         event.stateChange = true;
+
         if (event.value === null) {
           (this.validatorStore as Map<ControlId, ValidatorFn>).delete(
             event.source,
@@ -1026,11 +1083,6 @@ export abstract class ControlBase<
         );
 
         this.updateValidation(event);
-        return true;
-      }
-      case 'data': {
-        event.stateChange = true;
-        this.data = event.value;
         return true;
       }
     }
