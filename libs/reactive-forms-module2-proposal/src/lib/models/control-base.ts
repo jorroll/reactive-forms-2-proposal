@@ -1175,8 +1175,10 @@ export abstract class ControlBase<Value = any, Data = any>
         this._validator = composeValidators(
           Array.from(this._validatorStore.values()),
         );
-        changes.set('validatorStore', new Map(this._validatorStore));
+        // As with the "value" change, I think "updateValidation"
+        // needs to come before the "validatorStore" change is set
         this.updateValidation(changes, event);
+        changes.set('validatorStore', new Map(this._validatorStore));
         return true;
       }
       default: {

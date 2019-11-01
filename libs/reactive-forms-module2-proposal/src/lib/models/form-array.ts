@@ -263,8 +263,10 @@ export class FormArray<
     this._value = newValue;
     this._enabledValue = newEnabledValue;
 
-    changes.set('value', newValue);
+    // updateValidation must come before "value" change
+    // is set
     this.updateValidation(changes, options);
+    changes.set('value', newValue);
   }
 
   protected processStateChange(args: {
@@ -301,8 +303,10 @@ export class FormArray<
         this._value = newValue;
         this._enabledValue = newEnabledValue;
 
-        changes.set('value', newValue);
+        // updateValidation must come before "value" change
+        // is set
         this.updateValidation(changes, event);
+        changes.set('value', newValue);
         return true;
       }
       case 'controlsStore': {
@@ -347,8 +351,10 @@ export class FormArray<
         this._value = newValue;
         this._enabledValue = newEnabledValue;
 
-        changes.set('value', newValue);
+        // updateValidation must come before "value" change
+        // is set
         this.updateValidation(changes, event);
+        changes.set('value', newValue);
         return true;
       }
       case 'disabled': {
