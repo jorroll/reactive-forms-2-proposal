@@ -41,6 +41,8 @@ export class MyControlDirective implements OnChanges {
 
   ngOnChanges(changes: { control: SimpleChange }) {
     if (changes.control.previousValue) {
+      this.clearSubscriptions();
+
       // clear injected validators from the old control
       const oldControl = changes.control.previousValue;
 
@@ -58,7 +60,14 @@ export class MyControlDirective implements OnChanges {
     // re-add these validators
     this.subscriptions.push(
       this.control.events
-        .pipe(filter(({ type }) => type === 'validatorStore'))
+        .pipe(
+          filter(
+            ({ source, type, changes }) =>
+              source !== this.id &&
+              type === 'StateChange' &&
+              changes.has('validatorStore'),
+          ),
+        )
         .subscribe(() => {
           this.control.setValidators(this.validators, {
             source: this.id,

@@ -101,7 +101,7 @@ export class ExampleFourComponent implements OnInit {
     this.usernameControl.events
       .pipe(
         // Wait for the control to complete its synchronous validation.
-        filter(event => event.type === 'validation' && event.value === 'end'),
+        filter(event => event.type === 'Validation' && event.label === 'End'),
         tap(() => {
           // Discard any existing errors set by the userService as they are
           // no longer applicable.
@@ -111,16 +111,21 @@ export class ExampleFourComponent implements OnInit {
 
           // If the control is already marked invalid, we're going to skip the async
           // validation check so don't bother to mark pending.
-          this.usernameControl.markPending(this.usernameControl.valid, {
-            source: `userService`,
-          });
+          this.usernameControl.markPending(
+            this.usernameControl.value !== '' && this.usernameControl.valid,
+            {
+              source: `userService`,
+            },
+          );
         }),
         // By running validation inside a `switchMap` + `interval()` (instead
         // of `debounceTime()`), we ensure that an in-progress async validation
         // check is discarded if the user starts typing again.
         switchMap(() => {
           // If the control is already invalid we don't need to do anything.
-          if (this.usernameControl.invalid) return NEVER;
+          if (this.usernameControl.value === '' || this.usernameControl.invalid) {
+            return NEVER;
+          }
 
           // Else run validation.
           return interval(500).pipe(

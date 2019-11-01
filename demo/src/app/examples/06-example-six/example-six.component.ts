@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormControl, ControlEvent } from 'reactive-forms-module2-proposal';
+import { FormControl, StateChange } from 'reactive-forms-module2-proposal';
 import { Observable } from 'rxjs';
 
 @Component({
@@ -10,7 +10,7 @@ import { Observable } from 'rxjs';
 export class ExampleSixComponent implements OnInit {
   inputControl = new FormControl('start typing!');
 
-  inputControlDefaults!: Observable<ControlEvent<string, any>>;
+  inputControlDefaults!: Observable<StateChange>;
 
   constructor() {}
 
@@ -19,6 +19,9 @@ export class ExampleSixComponent implements OnInit {
   }
 
   reset() {
+    // this.inputControlDefaults.subscribe(event => {
+    //   console.log('reset event', event);
+    // });
     this.inputControlDefaults.subscribe(this.inputControl.source);
   }
 }

@@ -21,7 +21,7 @@ import {
   ControlAccessor,
 } from '../accessors';
 import { NgControlDirective } from './control.directive';
-import { ControlStateMapper, ControlValueMapper } from './interface';
+import { ControlValueMapper } from './interface';
 
 @Directive({
   selector: '[ngFormGroup]',
@@ -40,8 +40,6 @@ import { ControlStateMapper, ControlValueMapper } from './interface';
 export class NgFormGroupDirective extends NgControlDirective<FormGroup>
   implements OnChanges {
   @Input('ngFormGroup') providedControl!: FormGroup;
-  @Input('ngFormGroupStateMapper')
-  stateMapper: ControlStateMapper | undefined;
   @Input('ngFormGroupValueMapper')
   valueMapper: ControlValueMapper | undefined;
 
@@ -64,10 +62,10 @@ export class NgFormGroupDirective extends NgControlDirective<FormGroup>
       this.subscriptions.push(
         this.accessor.control.replayState().subscribe(this.control.source),
         this.accessor.control.events
-          .pipe(filter(({ type }) => type !== 'validation'))
+          .pipe(filter(({ type }) => type !== 'Validation'))
           .subscribe(this.control.source),
         this.control.events
-          .pipe(filter(({ type }) => type !== 'validation'))
+          .pipe(filter(({ type }) => type !== 'Validation'))
           .subscribe(this.accessor.control.source),
       );
     }
@@ -75,12 +73,16 @@ export class NgFormGroupDirective extends NgControlDirective<FormGroup>
 
   ngOnChanges(_: {
     providedControl?: SimpleChange;
-    stateMapper?: SimpleChange;
     valueMapper?: SimpleChange;
   }) {
     if (!this.providedControl) {
       throw new Error(`NgFormGroupDirective must be passed a ngFormGroup`);
     }
+
+    this.assertValidValueMapper(
+      'NgFormGroupDirective#ngFormGroupValueMapper',
+      this.valueMapper,
+    );
 
     super.ngOnChanges(_);
   }

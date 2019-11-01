@@ -28,22 +28,53 @@ export interface ControlContainer<
   EnabledValue = any,
   Data = any
 > extends AbstractControl<Value, Data> {
-  controls: Controls;
+  readonly controls: Controls;
+  readonly controlsStore: ReadonlyMap<string, AbstractControl>;
 
-  value: DeepReadonly<Value>;
-  enabledValue: DeepReadonly<EnabledValue>;
+  readonly size: number;
 
-  size: number;
+  readonly value: DeepReadonly<Value>;
+  readonly enabledValue: DeepReadonly<EnabledValue>;
 
-  childDisabled: boolean;
-  childReadonly: boolean;
-  childSubmitted: boolean;
-  childTouched: boolean;
-  childChanged: boolean;
-  childPending: boolean;
-  childDirty: boolean;
+  readonly containerValid: boolean;
+  readonly childValid: boolean;
+  readonly childrenValid: boolean;
+
+  readonly containerInvalid: boolean;
+  readonly childInvalid: boolean;
+  readonly childrenInvalid: boolean;
+
+  readonly containerDisabled: boolean;
+  readonly childDisabled: boolean;
+  readonly childrenDisabled: boolean;
+
+  readonly containerReadonly: boolean;
+  readonly childReadonly: boolean;
+  readonly childrenReadonly: boolean;
+
+  readonly containerPending: boolean;
+  readonly childPending: boolean;
+  readonly childrenPending: boolean;
+
+  readonly containerTouched: boolean;
+  readonly childTouched: boolean;
+  readonly childrenTouched: boolean;
+
+  readonly containerChanged: boolean;
+  readonly childChanged: boolean;
+  readonly childrenChanged: boolean;
+
+  readonly containerSubmitted: boolean;
+  readonly childSubmitted: boolean;
+  readonly childrenSubmitted: boolean;
+
+  readonly containerDirty: boolean;
+  readonly childDirty: boolean;
+  readonly childrenDirty: boolean;
 
   [ControlContainer.CONTROL_CONTAINER_INTERFACE](): this;
+
+  equalValue(value: any, options?: { assertShape?: boolean }): value is Value;
 
   get<A extends AbstractControl = AbstractControl>(...args: any[]): A | null;
 
@@ -54,4 +85,11 @@ export interface ControlContainer<
   addControl(...args: any[]): void;
 
   removeControl(...args: any[]): void;
+
+  markChildrenDisabled(value: boolean, options?: ControlEventOptions): void;
+  markChildrenTouched(value: boolean, options?: ControlEventOptions): void;
+  markChildrenChanged(value: boolean, options?: ControlEventOptions): void;
+  markChildrenReadonly(value: boolean, options?: ControlEventOptions): void;
+  markChildrenSubmitted(value: boolean, options?: ControlEventOptions): void;
+  markChildrenPending(value: boolean, options?: ControlEventOptions): void;
 }

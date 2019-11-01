@@ -15,7 +15,7 @@ import {
   OnInit,
 } from '@angular/core';
 import { ɵgetDOM as getDOM } from '@angular/platform-browser';
-import { filter } from 'rxjs/operators';
+import { filter, map } from 'rxjs/operators';
 import { setupListeners } from './util';
 import { FormControl } from '../models';
 import { NG_CONTROL_ACCESSOR, ControlAccessor } from './interface';
@@ -106,11 +106,14 @@ export class DefaultValueAccessor
       this.control.events
         .pipe(
           filter(
-            ({ type, source }) =>
-              type === 'value' && source !== this.control.id,
+            ({ source, type, changes }) =>
+              source !== this.control.id &&
+              type === 'StateChange' &&
+              changes.has('value'),
           ),
+          map(({ changes }) => changes.get('value')),
         )
-        .subscribe(({ value }) => {
+        .subscribe(value => {
           const normalizedValue = value == null ? '' : value;
           this.renderer.setProperty(
             this.el.nativeElement,

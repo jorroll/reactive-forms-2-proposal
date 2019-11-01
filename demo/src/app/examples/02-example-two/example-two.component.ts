@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormControl } from 'reactive-forms-module2-proposal';
+import { FormControl, ValidatorFn } from 'reactive-forms-module2-proposal';
 
 @Component({
   selector: 'app-example-two',

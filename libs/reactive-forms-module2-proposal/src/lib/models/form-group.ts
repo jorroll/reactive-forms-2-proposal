@@ -1,14 +1,10 @@
 import { merge, concat } from 'rxjs';
 import { map, filter, tap } from 'rxjs/operators';
-import {
-  AbstractControl,
-  ControlEvent,
-  ControlEventOptions,
-  ProcessedControlEvent,
-} from './abstract-control';
-import { IControlBaseArgs } from './control-base';
+import { AbstractControl, ControlEventOptions } from './abstract-control';
+import { IControlBaseArgs, StateChange } from './control-base';
 import { ControlContainerBase } from './control-container-base';
 import { ControlContainer } from './control-container';
+import { isMapEqual, pluckOptions } from './util';
 
 export type IFormGroupArgs<D> = IControlBaseArgs<D>;
 
@@ -37,16 +33,24 @@ export class FormGroup<
   FormGroupEnabledValue<T>,
   D
 > {
+  protected _controlsStore: ReadonlyMap<keyof T, T[keyof T]> = new Map();
+  get controlsStore() {
+    return this._controlsStore;
+  }
+
   protected _controls: T;
 
   constructor(controls: T = {} as T, options?: IFormGroupArgs<D>) {
     super(extractValue<T>(controls), options);
 
     this._controls = { ...controls };
-    this._normalizedControls = Object.entries(this._controls);
+    this._controlsStore = new Map<keyof T, T[keyof T]>(Object.entries(
+      this._controls,
+    ) as any);
     this._enabledValue = extractEnabledValue(controls);
 
-    this.setupSource();
+    this.setupControls(new Map());
+    this.subscribeToControls();
   }
 
   get<A extends keyof T>(a: A): T[A];
@@ -55,12 +59,72 @@ export class FormGroup<
     return super.get(...args);
   }
 
+  equalValue(
+    value: FormGroupValue<T>,
+    options: { assertShape?: boolean } = {},
+  ): value is FormGroupValue<T> {
+    const error = () => {
+      console.error(
+        `FormGroup`,
+        `incoming value:`,
+        value,
+        'current controls:',
+        this.controls,
+      );
+
+      throw new Error(
+        `FormGroup "value" must have the ` +
+          `same shape (keys) as the FormGroup's controls`,
+      );
+    };
+
+    if (this.controlsStore.size !== Object.keys(value).length) {
+      if (options.assertShape) error();
+      return false;
+    }
+
+    return Array.from(this.controlsStore).every(([key, control]) => {
+      if (!value.hasOwnProperty(key)) {
+        if (options.assertShape) error();
+        return false;
+      }
+
+      return ControlContainer.isControlContainer(control)
+        ? control.equalValue(value[key], options)
+        : control.equalValue(value[key]);
+    });
+  }
+
+  setValue(value: FormGroupValue<T>, options: ControlEventOptions = {}) {
+    this.emitEvent<StateChange>({
+      type: 'StateChange',
+      changes: new Map<string, any>([['value', value]]),
+      ...pluckOptions(options),
+    });
+  }
+
   patchValue(
     value: Partial<FormGroupValue<T>>,
     options: ControlEventOptions = {},
   ) {
     Object.entries(value).forEach(([key, val]) => {
-      this._controls[key].patchValue(val, options);
+      const c = this.controls[key];
+
+      if (!c) {
+        throw new Error(`FormGroup: Invalid patchValue key "${key}".`);
+      }
+
+      c.patchValue(val, options);
+    });
+  }
+
+  setControls(controls: T, options?: ControlEventOptions) {
+    this.emitEvent<StateChange>({
+      type: 'StateChange',
+      changes: new Map<string, any>([
+        ['controlsStore', new Map(Object.entries(controls))],
+      ]),
+      ...pluckOptions(options),
     });
   }
 
@@ -69,12 +133,19 @@ export class FormGroup<
     control: T[N] | null,
     options?: ControlEventOptions,
   ) {
-    const value = {
-      ...this._controls,
-      [name]: control,
-    };
+    const controls = new Map(this.controlsStore);
 
-    this.source.next(this.buildEvent('controls', value, options));
+    if (control) {
+      controls.set(name, control);
+    } else {
+      controls.delete(name);
+    }
+
+    this.emitEvent<StateChange>({
+      type: 'StateChange',
+      changes: new Map<string, any>([['controlsStore', controls]]),
+      ...pluckOptions(options),
+    });
   }
 
   addControl<N extends keyof T>(
@@ -82,120 +153,145 @@ export class FormGroup<
     control: T[N],
     options?: ControlEventOptions,
   ) {
-    if (this._controls[name]) return;
+    if (this.controlsStore.has(name)) return;
 
-    const value = {
-      ...this._controls,
-      [name]: control,
-    };
-
-    this.source.next(this.buildEvent('controls', value, options));
+    this.setControl(name, control, options);
   }
 
   removeControl(name: keyof T, options?: ControlEventOptions) {
-    if (!this._controls[name]) return;
+    if (!this.controlsStore.has(name)) return;
 
-    const value = Object.fromEntries(
-      Object.entries(this._controls).filter(([key]) => key !== name),
-    ) as T;
-
-    this.source.next(this.buildEvent('controls', value, options));
+    this.setControl(name, null, options);
   }
 
-  protected validateValueShape(value: FormGroupValue<T>, eventId: number) {
-    const error = () => {
-      console.error(
-        `FormGroup ControlEvent #${eventId}`,
-        `incoming value:`,
-        value,
-        'current controls:',
-        this._controls,
-        this,
-      );
+  protected setupControls(
+    changes: Map<string, any>,
+    options?: ControlEventOptions,
+  ) {
+    super.setupControls(changes);
 
-      throw new Error(
-        `FormGroup "value" ControlEvent #${eventId} must have the ` +
-          `same shape as the FormGroup's controls`,
-      );
-    };
+    const newValue = { ...this._value };
+    const newEnabledValue = { ...this._enabledValue };
 
-    if (value === null || value === undefined) error();
+    this.controlsStore.forEach((control, key) => {
+      newValue[key as keyof FormGroupValue<T>] = control.value;
 
-    const keys = Object.keys(this._controls || {});
-    const providedKeys = Object.keys(value);
+      if (control.enabled) {
+        newEnabledValue[
+          key as keyof FormGroupValue<T>
+        ] = ControlContainer.isControlContainer(control)
+          ? control.enabledValue
+          : control.value;
+      }
+    });
 
-    if (
-      keys.length !== providedKeys.length ||
-      !keys.every(key => providedKeys.includes(key))
-    ) {
-      error();
-    }
+    this._value = newValue;
+    this._enabledValue = newEnabledValue;
+
+    changes.set('value', newValue);
+    this.updateValidation(changes, options);
   }
 
-  protected processValue() {
-    return extractValue<T>((this._controls || {}) as T);
-  }
+  protected processStateChange(args: {
+    event: StateChange;
+    value: any;
+    prop: string;
+    changes: Map<string, any>;
+  }): boolean {
+    const { value, prop, changes, event } = args;
 
-  protected processEnabledValue() {
-    return extractEnabledValue<T>((this._controls || {}) as T);
-  }
-
-  protected processEvent(event: ProcessedControlEvent<string, any>) {
-    switch (event.type) {
+    switch (prop) {
       case 'value': {
-        event.stateChange = true;
+        if (this.equalValue(value, { assertShape: true })) {
+          return true;
+        }
 
-        this.validateValueShape(event.value, event.id);
-
-        Object.entries(event.value).forEach(([key, value]) => {
-          // `...event` includes the `applied` array (so these
-          // events won't trigger new updates to this FormGroup).
-          this._controls[key].source.next({
-            ...event,
-            value,
-          });
+        this.controlsStore.forEach((control, key) => {
+          control.patchValue(value[key], event);
         });
 
-        // We extract the value from the controls in case the controls
-        // themselves change the value
-        this._value = this.processValue();
-        this._enabledValue = this.processEnabledValue();
-        this.updateValidation(event);
+        const newValue = { ...this._value };
+        const newEnabledValue = { ...this._enabledValue };
 
+        Object.keys(value).forEach(k => {
+          const c = this.controlsStore.get(k)!;
+          newValue[k as keyof FormGroupValue<T>] = c.value;
+          newEnabledValue[
+            k as keyof FormGroupValue<T>
+          ] = ControlContainer.isControlContainer(c) ? c.enabledValue : c.value;
+        });
+
+        this._value = newValue;
+        this._enabledValue = newEnabledValue;
+
+        changes.set('value', newValue);
+        this.updateValidation(changes, event);
         return true;
       }
-      case 'controls': {
-        event.stateChange = true;
-        this._controls = { ...event.value };
-        this._normalizedControls = Object.entries(this._controls);
-        this._size = Object.values(this._controls).length;
-        this.setupSource();
+      case 'controlsStore': {
+        if (isMapEqual(this.controlsStore, value)) return true;
+
+        this._controlsStore = new Map(value);
+        this._controls = Object.fromEntries(value) as T;
+        changes.set('controlsStore', new Map(value));
+        this.unsubscribeToControls();
+        this.setupControls(changes, event); // <- will setup value
+        this.subscribeToControls();
         return true;
       }
-      case 'childEvent': {
-        return this.processChildEvent(event);
+      default: {
+        return super.processStateChange(args);
       }
     }
-
-    return super.processEvent(event);
   }
 
-  protected processChildEvent(
-    parentEvent: ProcessedControlEvent<string, any>,
-  ): boolean {
-    const event = parentEvent.value;
+  protected processChildStateChange(args: {
+    control: AbstractControl;
+    key: keyof FormGroupValue<T>;
+    event: StateChange;
+    prop: string;
+    value: any;
+    changes: Map<string, any>;
+  }): boolean {
+    const { control, key, prop, value, event, changes } = args;
 
-    switch (event.type) {
+    switch (prop) {
       case 'value': {
-        parentEvent.stateChange = true;
-        this._value = this.processValue();
-        this._enabledValue = this.processEnabledValue();
-        this.updateValidation(event);
+        const newValue = { ...this._value };
+        const newEnabledValue = { ...this._enabledValue };
+
+        newValue[key] = control.value;
+        newEnabledValue[key] = ControlContainer.isControlContainer(control)
+          ? control.enabledValue
+          : control.value;
+
+        this._value = newValue;
+        this._enabledValue = newEnabledValue;
+
+        changes.set('value', newValue);
+        this.updateValidation(changes, event);
+        return true;
+      }
+      case 'disabled': {
+        super.processChildStateChange(args);
+
+        const newEnabledValue = { ...this._enabledValue };
+
+        if (control.enabled) {
+          newEnabledValue[key] = ControlContainer.isControlContainer(control)
+            ? control.enabledValue
+            : control.value;
+        } else {
+          delete newEnabledValue[key];
+        }
+
+        this._enabledValue = newEnabledValue;
+
         return true;
       }
     }
 
-    return super.processChildEvent(parentEvent);
+    return super.processChildStateChange(args);
   }
 }
 

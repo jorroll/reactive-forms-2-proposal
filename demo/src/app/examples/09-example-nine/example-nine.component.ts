@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { FormControl } from 'reactive-forms-module2-proposal';
-import { filter } from 'rxjs/operators';
+import { filter, map } from 'rxjs/operators';
 
 @Component({
   selector: 'app-example-nine',
@@ -9,7 +9,18 @@ import { filter } from 'rxjs/operators';
 })
 export class ExampleNineComponent implements OnInit {
   controlA = new FormControl('');
-  values$ = this.controlA.events.pipe(filter(state => state.type === 'value'));
+  values$ = this.controlA.events.pipe(
+    filter(e => e.type === 'StateChange' && e.changes.has('value')),
+    map(event => {
+      return {
+        ...event,
+        processed: event.processed.map(i =>
+          typeof i === 'symbol' ? i.toString() : i,
+        ),
+        changes: Object.fromEntries(event.changes),
+      };
+    }),
+  );
 
   constructor() {}
 

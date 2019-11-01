@@ -17,49 +17,41 @@ export type AbstractControlData<T> = T extends AbstractControl<any, infer D>
 
 export type ControlId = string | symbol;
 
-export interface ControlEvent<Type extends string, Value> {
+export interface PartialControlEvent {
+  id?: string;
   source: ControlId;
-  readonly applied: ControlId[];
-  type: Type;
-  value: Value;
-  noEmit?: boolean;
+  readonly processed: ControlId[];
+  type: string;
   meta?: { [key: string]: any };
-  [key: string]: any;
+  noEmit?: boolean;
 }
 
-export interface ProcessedControlEvent<Type extends string, Value> extends ControlEvent<Type, Value> {
-  id: number;
+export interface ControlEvent extends PartialControlEvent {
+  id: string;
   meta: { [key: string]: any };
-  stateChange?: boolean;
 }
 
 export interface ControlEventOptions {
   noEmit?: boolean;
   meta?: { [key: string]: any };
+  eventId?: string;
   source?: ControlId;
+  processed?: ControlId[];
 }
 
-export type DeepReadonly<T> =
-  T extends Array<infer R> ? DeepReadonlyArray<R> :
-  T extends Function ? T :
-  T extends object ? DeepReadonlyObject<T> :
-  T;
+export type DeepReadonly<T> = T extends Array<infer R>
+  ? DeepReadonlyArray<R>
+  : T extends Function
+  ? T
+  : T extends object
+  ? DeepReadonlyObject<T>
+  : T;
 
 interface DeepReadonlyArray<T> extends ReadonlyArray<DeepReadonly<T>> {}
 
 type DeepReadonlyObject<T> = {
   readonly [P in keyof T]: DeepReadonly<T[P]>;
 };
-
-// export type DeepOptional<T> =
-//   T extends Array<any> ? T :
-//   T extends Function ? T :
-//   T extends object ? DeepOptionalObject<T> :
-//   T;
-
-// type DeepOptionalObject<T> = {
-//   [P in keyof T]-?: DeepOptional<T[P]>;
-// };
 
 /**
  * ControlSource is a special rxjs Subject which never
@@ -70,27 +62,36 @@ export class ControlSource<T> extends Subject<T> {
   complete() {}
 }
 
+let _id = 0;
+let _eventId = 0;
+
 export namespace AbstractControl {
-  export let id = 0;
-  export let eventId = 0;
-  export const ABSTRACT_CONTROL_INTERFACE = Symbol('@@AbstractControlInterface');
+  export const ABSTRACT_CONTROL_INTERFACE = Symbol(
+    '@@AbstractControlInterface',
+  );
+  export function id() {
+    return Symbol(`control-${_id++}`);
+  }
+  export function eventId() {
+    return (_eventId++).toString();
+  }
   export function isAbstractControl(object?: any): object is AbstractControl {
     return (
       typeof object === 'object' &&
-      typeof object[AbstractControl.ABSTRACT_CONTROL_INTERFACE] === 'function' &&
+      typeof object[AbstractControl.ABSTRACT_CONTROL_INTERFACE] ===
+        'function' &&
       object[AbstractControl.ABSTRACT_CONTROL_INTERFACE]() === object
     );
   }
 }
 
 export interface AbstractControl<Value = any, Data = any> {
-
   /**
    * The ID is used to determine where StateChanges originated,
    * and to ensure that a given AbstractControl only processes
    * values one time.
    */
-  id: ControlId;
+  readonly id: ControlId;
 
   data: Data;
 
@@ -105,34 +106,34 @@ export interface AbstractControl<Value = any, Data = any> {
    * Never subscribe to the source directly. If you want to receive events for
    * this control, subscribe to the `events` observable.
    */
-  source: ControlSource<ControlEvent<string, any>>;
+  source: ControlSource<PartialControlEvent>;
 
   /** An observable of all events for this AbstractControl */
-  events: Observable<ProcessedControlEvent<string, any>>;
+  events: Observable<ControlEvent & { [key: string]: any }>;
 
-  value: DeepReadonly<Value>;
+  readonly value: DeepReadonly<Value>;
 
-  errors: ValidationErrors | null;
+  readonly errors: ValidationErrors | null;
 
   /**
    * A map of validation errors keyed to the source which added them.
    */
-  errorsStore: ReadonlyMap<ControlId, ValidationErrors>;
+  readonly errorsStore: ReadonlyMap<ControlId, ValidationErrors>;
 
-  disabled: boolean;
-  enabled: boolean;
-  valid: boolean;
-  invalid: boolean;
-  pending: boolean;
+  readonly disabled: boolean;
+  readonly enabled: boolean;
+  readonly valid: boolean;
+  readonly invalid: boolean;
+  readonly pending: boolean;
 
   /**
    * A map of pending states keyed to the source which added them.
    * So long as there are any `true` boolean values, this control's
    * `pending` property will be `true`.
    */
-  pendingStore: ReadonlyMap<ControlId, true>;
+  readonly pendingStore: ReadonlyMap<ControlId, true>;
 
-  status: 'DISABLED' | 'PENDING' | 'VALID' | 'INVALID';
+  readonly status: 'DISABLED' | 'PENDING' | 'VALID' | 'INVALID';
 
   /**
    * focusChanges allows consumers to be notified when this
@@ -140,11 +141,11 @@ export interface AbstractControl<Value = any, Data = any> {
    */
   focusChanges: Observable<boolean>;
 
-  readonly: boolean;
-  submitted: boolean;
-  touched: boolean;
-  changed: boolean;
-  dirty: boolean;
+  readonly readonly: boolean;
+  readonly submitted: boolean;
+  readonly touched: boolean;
+  readonly changed: boolean;
+  readonly dirty: boolean;
 
   /**
    * A map of ValidatorFn keyed to the source which added them.
@@ -152,9 +153,9 @@ export interface AbstractControl<Value = any, Data = any> {
    * In general, users won't need to access this. But it is exposed for
    * advanced usage.
    */
-  validatorStore: ReadonlyMap<ControlId, ValidatorFn>;
+  readonly validatorStore: ReadonlyMap<ControlId, ValidatorFn>;
 
-  validator: ValidatorFn | null;
+  readonly validator: ValidatorFn | null;
 
   [AbstractControl.ABSTRACT_CONTROL_INTERFACE](): this;
 
@@ -511,6 +512,8 @@ export interface AbstractControl<Value = any, Data = any> {
     options?: { ignoreNoEmit?: boolean },
   ): Observable<T>;
 
+  equalValue(value: Value): value is Value;
+
   setValue(value: Value, options?: ControlEventOptions): void;
 
   patchValue(value: any, options?: ControlEventOptions): void;
@@ -550,11 +553,7 @@ export interface AbstractControl<Value = any, Data = any> {
   markSubmitted(value: boolean, options?: ControlEventOptions): void;
 
   markPending(
-    value: boolean,
-    options?: ControlEventOptions & { source?: ControlId },
-  ): void;
-  markPending(
-    value: ReadonlyMap<ControlId, true>,
+    value: boolean | ReadonlyMap<ControlId, true>,
     options?: ControlEventOptions,
   ): void;
 
@@ -563,11 +562,11 @@ export interface AbstractControl<Value = any, Data = any> {
   focus(value?: boolean, options?: ControlEventOptions): void;
 
   setValidators(
-    value: ValidatorFn | ValidatorFn[] | null,
-    options?: ControlEventOptions & { source?: ControlId },
-  ): void;
-  setValidators(
-    value: ReadonlyMap<ControlId, ValidatorFn>,
+    value:
+      | ValidatorFn
+      | ValidatorFn[]
+      | null
+      | ReadonlyMap<ControlId, ValidatorFn>,
     options?: ControlEventOptions,
   ): void;
 
@@ -577,15 +576,19 @@ export interface AbstractControl<Value = any, Data = any> {
    * identical to this one. This observable will complete upon
    * replaying the necessary state changes.
    */
-  replayState(
-    options?: ControlEventOptions,
-  ): Observable<ProcessedControlEvent<string, any>>;
+  replayState(options?: ControlEventOptions): Observable<ControlEvent>;
 
   /**
    * A convenience method for emitting an arbitrary control event.
    */
-  emitEvent<T extends string, V>(
-    event: Pick<ControlEvent<T, V>, 'type' | 'value'> &
-      Partial<ControlEvent<T, V>>,
+  emitEvent<
+    T extends PartialControlEvent = PartialControlEvent & { [key: string]: any }
+  >(
+    event: Partial<
+      Pick<T, 'id' | 'meta' | 'source' | 'processed' | 'noEmit' | 'meta'>
+    > &
+      Omit<T, 'id' | 'meta' | 'source' | 'processed' | 'noEmit' | 'meta'> & {
+        type: string;
+      },
   ): void;
 }

@@ -28,13 +28,6 @@
         this example, the inputControl begins with an error because it's initial
         value is invalid. The dateControl does not.
       </li>
-      <li>
-        While this example isn't focusing on compatibility with the old
-        <code>ReactiveFormsModule</code> (see examples below for that), it
-        actually uses the material datepicker along with the compatibility
-        directive to allow picking dates for the dateControl (it was easier than
-        building a custom solution for this example).
-      </li>
     </ol>
   </mat-card-content>
 
@@ -43,34 +36,30 @@
       <label> inputControl </label>
       <input [ngFormControl]="inputControl" />
 
-      <div *ngIf="inputControl.touched && inputControl.invalid" class="error">
+      <div *ngIf="inputControl.dirty && inputControl.invalid" class="error">
         <p>inputControl Errors:</p>
         <p>{{ inputControl.errors | json }}</p>
+      </div>
+
+      <div>
+        <p>inputControl value:</p>
+        <p>{{ inputControl.value }}</p>
       </div>
     </div>
 
     <div style="margin-top: 1rem;">
-      <mat-form-field>
-        <mat-label> DateControl </mat-label>
+      <label> dateControl </label>
+      <button (click)="setDate()">Set date to today</button>
 
-        <input
-          matInput
-          placeholder="M/D/YYYY"
-          formControl
-          [ngFormControl]="dateControl"
-          [matDatepicker]="picker"
-        />
+      <div *ngIf="dateControl.dirty && dateControl.invalid" class="error">
+        <p>dateControl Errors:</p>
+        <p>{{ dateControl.errors | json }}</p>
+      </div>
 
-        <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-
-        <mat-datepicker #picker></mat-datepicker>
-
-        <mat-hint>
-          the dateControl wants M/D/YYYY while the inputControl wants YYYY-MM-DD
-        </mat-hint>
-
-        <mat-error> {{ dateControl.errors | json }} </mat-error>
-      </mat-form-field>
+      <div>
+        <p>dateControl value:</p>
+        <p>{{ dateControl.value | json }}</p>
+      </div>
     </div>
   </mat-card-content>
 

@@ -16,7 +16,7 @@ import { NG_CONTROL_DIRECTIVE } from './base.directive';
 import { resolveControlAccessor } from './util';
 import { ControlAccessor, NG_CONTROL_ACCESSOR } from '../accessors';
 import { NgControlDirective } from './control.directive';
-import { ControlStateMapper, ControlValueMapper } from './interface';
+import { ControlValueMapper } from './interface';
 
 @Directive({
   selector: '[ngFormControl]:not([formControl])',
@@ -31,8 +31,6 @@ import { ControlStateMapper, ControlValueMapper } from './interface';
 export class NgFormControlDirective extends NgControlDirective<FormControl>
   implements ControlAccessor, OnChanges, OnDestroy {
   @Input('ngFormControl') providedControl!: FormControl;
-  @Input('ngFormControlStateMapper')
-  stateMapper: ControlStateMapper | undefined;
   @Input('ngFormControlValueMapper')
   valueMapper: ControlValueMapper | undefined;
 
@@ -53,22 +51,26 @@ export class NgFormControlDirective extends NgControlDirective<FormControl>
     this.subscriptions.push(
       this.accessor.control.replayState().subscribe(this.control.source),
       this.accessor.control.events
-        .pipe(filter(({ type }) => type !== 'validation'))
+        .pipe(filter(({ type }) => type !== 'Validation'))
         .subscribe(this.control.source),
       this.control.events
-        .pipe(filter(({ type }) => type !== 'validation'))
+        .pipe(filter(({ type }) => type !== 'Validation'))
         .subscribe(this.accessor.control.source),
     );
   }
 
   ngOnChanges(_: {
     providedControl?: SimpleChange;
-    stateMapper?: SimpleChange;
     valueMapper?: SimpleChange;
   }) {
     if (!this.providedControl) {
       throw new Error(`NgFormControlDirective must be passed a ngFormControl`);
     }
+
+    this.assertValidValueMapper(
+      'NgFormControlDirective#ngFormControlValueMapper',
+      this.valueMapper,
+    );
 
     super.ngOnChanges(_);
   }

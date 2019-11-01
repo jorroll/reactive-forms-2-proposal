@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { AbstractControl, FormControl } from '../models';
-import { ControlValueMapper, ControlStateMapper } from './interface';
+import { ControlValueMapper, ControlAccessorEvent } from './interface';
 import { map, filter } from 'rxjs/operators';
 import { NgBaseDirective, NG_CONTROL_DIRECTIVE } from './base.directive';
 import {
@@ -37,8 +37,6 @@ import { resolveControlAccessor } from './util';
 export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
   implements ControlAccessor, OnChanges, OnDestroy {
   @Input('ngFormControlName') controlName!: string;
-  @Input('ngFormControlStateMapper')
-  stateMapper?: ControlStateMapper;
   @Input('ngFormControlValueMapper')
   valueMapper?: ControlValueMapper;
 
@@ -64,24 +62,25 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
     this.subscriptions.push(
       this.accessor.control.replayState().subscribe(this.control.source),
       this.accessor.control.events
-        .pipe(filter(({ type }) => type !== 'validation'))
+        .pipe(filter(({ type }) => type !== 'Validation'))
         .subscribe(this.control.source),
       this.control.events
-        .pipe(filter(({ type }) => type !== 'validation'))
+        .pipe(filter(({ type }) => type !== 'Validation'))
         .subscribe(this.accessor.control.source),
     );
   }
 
-  ngOnChanges(_: {
-    controlName?: SimpleChange;
-    stateMapper?: SimpleChange;
-    valueMapper?: SimpleChange;
-  }) {
+  ngOnChanges(_: { controlName?: SimpleChange; valueMapper?: SimpleChange }) {
     if (!this.controlName) {
       throw new Error(
         `NgFormControlNameDirective must be passed a ngFormControlName`,
       );
     }
+
+    this.assertValidValueMapper(
+      'NgFormControlNameDirective#ngFormControlValueMapper',
+      this.valueMapper,
+    );
 
     this.cleanupInnerSubs();
     this.onChangesSubscriptions.forEach(sub => sub.unsubscribe());
@@ -94,21 +93,21 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
           this.cleanupInnerSubs();
 
           if (providedControl) {
-            this.control.emitEvent({
+            this.control.emitEvent<ControlAccessorEvent>({
               source: this.id,
               type: 'ControlAccessor',
-              value: 'PreInit',
+              label: 'PreInit',
             });
 
             this.innerSubscriptions.push(
               providedControl
                 .replayState()
-                .pipe(map(this.fromProvidedControlMapFn()))
+                .pipe(map(this.toAccessorControlMapFn()))
                 .subscribe(this.control.source),
               providedControl.events
                 .pipe(
-                  filter(({ type }) => type !== 'validation'),
-                  map(this.fromProvidedControlMapFn()),
+                  filter(({ type }) => type !== 'Validation'),
+                  map(this.toAccessorControlMapFn()),
                 )
                 .subscribe(this.control.source),
             );
@@ -126,10 +125,8 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
                 this.control.events
                   .pipe(
                     filter(
-                      ({ type, value, source }) =>
-                        type === 'validation' &&
-                        value === 'internalEnd' &&
-                        source === this.control.id,
+                      ({ type, label }) =>
+                        type === 'Validation' && label === 'InternalComplete',
                     ),
                   )
                   .subscribe(() => {
@@ -147,16 +144,16 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
             this.innerSubscriptions.push(
               this.control.events
                 .pipe(
-                  filter(({ type }) => type !== 'validation'),
+                  filter(({ type }) => type !== 'Validation'),
                   map(this.toProvidedControlMapFn()),
                 )
                 .subscribe(providedControl.source),
             );
 
-            this.control.emitEvent({
+            this.control.emitEvent<ControlAccessorEvent>({
               source: this.id,
               type: 'ControlAccessor',
-              value: 'PostInit',
+              label: 'PostInit',
             });
           }
         }),
@@ -172,10 +169,10 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
   private cleanupInnerSubs() {
     this.innerSubscriptions.forEach(sub => sub.unsubscribe());
 
-    this.control.emitEvent({
+    this.control.emitEvent<ControlAccessorEvent>({
       source: this.id,
       type: 'ControlAccessor',
-      value: 'Cleanup',
+      label: 'Cleanup',
     });
 
     this.innerSubscriptions = [];
