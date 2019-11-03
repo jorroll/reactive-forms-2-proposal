@@ -77,7 +77,7 @@ export interface ControlContainer<
   /** Will return true if *all* enabled child control's are readonly */
   readonly childrenReadonly: boolean;
 
-  /** Will return true if `containerPending` or `childrenPending` */
+  /** Will return true if `containerPending` or `childPending` */
   readonly pending: boolean;
   /** Will return true if the `ControlContainer` is pending. */
   readonly containerPending: boolean;
@@ -86,7 +86,7 @@ export interface ControlContainer<
   /** Will return true if *all* enabled child control's are pending */
   readonly childrenPending: boolean;
 
-  /** Will return true if `containerTouched` or `childrenTouched` */
+  /** Will return true if `containerTouched` or `childTouched` */
   readonly touched: boolean;
   /** Will return true if the `ControlContainer` is touched. */
   readonly containerTouched: boolean;
@@ -95,7 +95,7 @@ export interface ControlContainer<
   /** Will return true if *all* enabled child control's are touched */
   readonly childrenTouched: boolean;
 
-  /** Will return true if `containerChanged` or `childrenChanged` */
+  /** Will return true if `containerChanged` or `childChanged` */
   readonly changed: boolean;
   /** Will return true if the `ControlContainer` is changed. */
   readonly containerChanged: boolean;
@@ -113,7 +113,7 @@ export interface ControlContainer<
   /** Will return true if *all* enabled child control's are submitted */
   readonly childrenSubmitted: boolean;
 
-  /** Will return true if `containerDirty` or `childrenDirty` */
+  /** Will return true if `containerDirty` or `childDirty` */
   readonly dirty: boolean;
   /** Will return true if `containerTouched` or `containerChanged`. */
   readonly containerDirty: boolean;

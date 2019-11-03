@@ -133,7 +133,7 @@ export abstract class ControlContainerBase<Controls, Value, EnabledValue, Data>
   // TOUCHED
 
   get touched() {
-    return this.containerTouched || this.childrenTouched;
+    return this.containerTouched || this.childTouched;
   }
 
   get containerTouched() {
@@ -153,7 +153,7 @@ export abstract class ControlContainerBase<Controls, Value, EnabledValue, Data>
   // CHANGED
 
   get changed() {
-    return this.containerChanged || this.childrenChanged;
+    return this.containerChanged || this.childChanged;
   }
 
   get containerChanged() {
@@ -173,7 +173,7 @@ export abstract class ControlContainerBase<Controls, Value, EnabledValue, Data>
   // PENDING
 
   get pending() {
-    return this.containerPending || this.childrenPending;
+    return this.containerPending || this.childPending;
   }
 
   get containerPending() {
@@ -193,7 +193,7 @@ export abstract class ControlContainerBase<Controls, Value, EnabledValue, Data>
   // DIRTY
 
   get dirty() {
-    return this.containerDirty || this.childrenDirty;
+    return this.containerDirty || this.childDirty;
   }
 
   get containerDirty() {
