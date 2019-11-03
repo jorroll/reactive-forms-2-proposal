@@ -1,5 +1,10 @@
 # Changelog
 
+## 2019/11/3
+
+- Fnished FormGroup and FormArray implementation. This also resulted in some tweaks to the ControlEvent API.
+- Added some form directives such as `FormGroupNameDirective` and cleaned up the directive implementations.
+
 ## 2019/10/15
 
 1. Added support for `data` state change event

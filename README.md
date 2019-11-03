@@ -12,23 +12,22 @@ This proposal is published on npm as `reactive-forms-module2-proposal`. This is 
 
 ## ControlEvent API
 
-_Note: only *advanced users* of the AbstractControl API need to know about the ControlEvent API. Most users can simply use the methods provided on AbstractControl to accomplish everything (and don't even need to know that the ControlEvent API is being used internally to accomplish tasks)._
+At the core of this AbstractControl proposal is a new ControlEvent API which controls all mutations (state changes) to the AbstractControl. It is powered by two properties on the AbstractControl: `source: ControlSource<PartialControlEvent>` and `events: Observable<ControlEvent>` (where `ControlSource` is simply a modified rxjs `Subject`).
 
-At the core of this AbstractControl proposal is a new ControlEvent API which controls all mutations (state changes) to the AbstractControl. It is powered by two properties on the AbstractControl: `source: ControlSource<ControlEvent<string, any>>` and `events: Observable<ControlEvent<string, any> & { stateChange: boolean }>` (where `ControlSource` is simply a modified rxjs `Subject`).
+> _Note: only *advanced users* of the AbstractControl API need to know about the ControlEvent API. Most users can simply use the methods provided on AbstractControl to accomplish everything (and don't even need to know that the ControlEvent API is being used internally to accomplish tasks)._
 
-To change the state of an AbstractControl, you emit a new ControlEvent object from the `source` property. This object has the interface
+To change the state of an AbstractControl, you emit a new PartialControlEvent object from the `source` property. This object has the interface
 
 _Figure 1:_
 
 ```ts
-interface ControlEvent<Type extends string, Value> {
+interface PartialControlEvent {
+  id?: string;
   source: ControlId;
-  readonly applied: ControlId[];
-  type: Type;
-  value: Value;
-  noEmit?: boolean;
+  readonly processed: ControlId[];
+  type: string;
   meta?: { [key: string]: any };
-  [key: string]: any;
+  noEmit?: boolean;
 }
 
 type ControlId = string | symbol;
@@ -45,10 +44,10 @@ abstract class AbstractControl<V = any, D = any> {
   markTouched(value: boolean, options: ControlEventOptions = {}) {
     if (value !== this._touched) {
       this.source.next({
-        source: source || this.id,
-        applied: [],
-        type: 'touched',
-        value,
+        source: options.source || this.id,
+        processed: [],
+        type: 'StateChange',
+        changes: new Map([['touched', value]])
         noEmit: options.noEmit,
         meta: options.meta,
       });
@@ -57,44 +56,44 @@ abstract class AbstractControl<V = any, D = any> {
 }
 ```
 
-Internally, the AbstractControl subscribes to output from the `ControlSource` (`source` property) and pipes that output to a `protected processEvent()` method. After being processed, the ControlEvent object is then re-emitted from the `events` property (so when a subscriber receives a ControlEvent from the `events` property, any changes have already been applied to the AbstractControl).
+Internally, the AbstractControl subscribes to output from the `source` property and pipes that output to a `protected processEvent()` method. After being processed, a new `ControlEvent` object is emitted from the `events` property which describes the mutations to the control (so when a subscriber receives a ControlEvent from the `events` property, any changes have already been applied to the AbstractControl).
 
 _Figure 3:_
 
 ```ts
 abstract class AbstractControl<V = any, D = any> {
-  id: symbol;
+  id: ControlId;
 
-  events = this.source.pipe(
-    filter(
-      // make sure we don't process an event we already processed
-      event => !event.applied.includes(this.id),
-    ),
-    tap(event => {
-      // Add our ID to the `applied` array to indicate that this control
-      // has already processed this event and doesn't need to
-      // do so again.
-      //
-      // It's important that we `push()` the new ID in to keep the same
-      // array reference
-      event.applied.push(this.id);
+  constructor() {
+    this.source
+      .pipe(
+        filter(
+          // make sure we don't process an event we already processed
+          event => !event.processed.includes(this.id),
+        ),
+      )
+      .subscribe(event => {
+        event.processed.push(this.id);
+        if (!event.meta) event.meta = {};
+        if (!event.id) event.id = AbstractControl.eventId();
 
-      this.processEvent(event);
-    }),
-    share(),
-  );
+        const newEvent = this.processEvent(event as ControlEvent);
+
+        if (newEvent) {
+          this._events.next(newEvent);
+        }
+      });
+  }
 }
 ```
 
-You'll notice that only events that haven't yet been applied to this `AbstractControl` are processed (i.e. `!event.applied.includes(this.id)`). This allows two AbstractControls to subscribe to each other's events without entering into an infinite loop.
-
-Additionally, if an event causes a state change for an AbstractControl, `processEvent` will add a `stateChange: true` boolean to the ControlEvent before emitting it from the `events` stream.
+You'll notice that only events that haven't yet been processed by this `AbstractControl` are processed (i.e. `!event.processed.includes(this.id)`). This allows two AbstractControls to subscribe to each other's events without entering into an infinite loop.
 
 ### Extensibility
 
-This ControlEvent API is highly extensible. At any time, a user can emit a custom event using the `AbstractControl#emitEvent()` method. A custom event will have no meaning to the AbstractControl itself, but it will be emitted from the `events` observable and the user can act on the event as appropriate. Similarly, if you actually create a custom AbstractControl (or extend an existing abstract control), you can simply define new events and add in custom logic to process them.
+This ControlEvent API is highly extensible. At any time, a user can emit a custom event using the `AbstractControl#emitEvent()` method. A custom event will have no meaning to the AbstractControl itself, but it will be emitted from the `events` observable and the user can act on the event as appropriate. Similarly, if you actually create a custom AbstractControl (or extend an existing AbstractControl), you can simply define new events and add in custom logic to process them.
 
-While many of the built-in ControlEvents which are emitted are state change events, not all of them are. For example, the current `FormControlDirective` emits a custom `{type: "ControlAccessor", value: 'PreInit" | "PostInit" | "Cleanup"}` event to allow hooking into the `FormControlDirective's` lifecycle. Similarly, `validation` lifecycle events are emitted to allow hooking into a control's validation process. The validation lifecycle is useful if you want a custom validation service to monitor a control.
+While many of the built-in ControlEvents which are emitted are `StateChange` events, not all of them are. For example, the current `FormControlDirective` emits a custom `{type: "ControlAccessor", label: 'PreInit" | "PostInit" | "Cleanup"}` event to allow hooking into the `FormControlDirective's` lifecycle. Similarly, `Validation` lifecycle events are emitted to allow hooking into a control's validation process. The validation lifecycle is useful if you want a custom validation service to monitor a control.
 
 ### View the API of individual ControlEvents
 
@@ -361,7 +360,7 @@ class ExampleFourComponent implements OnInit {
 
 An earlier version of this proposal included an `asyncValidators` property on `AbstractControl` (similar to the current `ReactiveFormsModule`). This property only existed to increase the similarities between the new API and the old API. I decided to remove the `asyncValidators` property in favor of using external services which provide more user control.
 
-It's also worth noting that synchronous validation can also be handled via a service. In fact, doing so has the added advantage that you don't need to worry about someone else somehow removing your validator function from a control.
+It's also worth noting that synchronous validation can also be handled via a service (though traditional `ValidatorFns` are also supported).
 
 ### `observe()`
 
