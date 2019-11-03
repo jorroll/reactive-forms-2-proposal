@@ -1,6 +1,6 @@
 {
   "name": "reactive-forms-module2-proposal",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "peerDependencies": {
     "@angular/common": "^8.2.0",
     "@angular/core": "^8.2.0"
