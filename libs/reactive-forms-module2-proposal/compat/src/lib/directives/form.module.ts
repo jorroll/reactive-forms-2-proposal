@@ -11,4 +11,4 @@ import { NgCompatFormControlNameDirective } from './ng_compat_form_control_name_
   ],
   exports: [NgCompatFormControlDirective, NgCompatFormControlNameDirective],
 })
-export class ReactiveFormsModule2ProposalCompat {}
+export class ReactiveFormsModule2Compat {}

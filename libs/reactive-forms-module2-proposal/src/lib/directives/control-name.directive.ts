@@ -52,7 +52,9 @@ export abstract class NgControlNameDirective<T extends AbstractControl>
             if (this.valueMapper && this.valueMapper.accessorValidator) {
               const validator = this.valueMapper.accessorValidator;
 
-              this.control.setErrors(validator(this.control));
+              this.control.setErrors(validator(this.control), {
+                source: this.id,
+              });
 
               // validate the control via a service to avoid the possibility
               // of the user somehow deleting our validator function.
@@ -60,11 +62,15 @@ export abstract class NgControlNameDirective<T extends AbstractControl>
                 this.control.validationEvents
                   .pipe(filter(({ label }) => label === 'InternalComplete'))
                   .subscribe(() => {
-                    this.control.setErrors(validator(this.control));
+                    this.control.setErrors(validator(this.control), {
+                      source: this.id,
+                    });
                   }),
               );
             } else {
-              this.control.setErrors(null);
+              this.control.setErrors(null, {
+                source: this.id,
+              });
             }
 
             this.innerSubscriptions.push(

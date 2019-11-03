@@ -98,10 +98,10 @@ export class ExampleFourComponent implements OnInit {
    */
 
   ngOnInit() {
-    this.usernameControl.events
+    this.usernameControl.validationEvents
       .pipe(
         // Wait for the control to complete its synchronous validation.
-        filter(event => event.type === 'Validation' && event.label === 'End'),
+        filter(event => event.label === 'End'),
         tap(() => {
           // Discard any existing errors set by the userService as they are
           // no longer applicable.
@@ -123,7 +123,10 @@ export class ExampleFourComponent implements OnInit {
         // check is discarded if the user starts typing again.
         switchMap(() => {
           // If the control is already invalid we don't need to do anything.
-          if (this.usernameControl.value === '' || this.usernameControl.invalid) {
+          if (
+            this.usernameControl.value === '' ||
+            this.usernameControl.invalid
+          ) {
             return NEVER;
           }
 

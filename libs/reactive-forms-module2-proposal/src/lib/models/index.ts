@@ -3,7 +3,6 @@ export * from './abstract-control';
 export {
   StateChange,
   FocusEvent,
-  ValidationEvent,
   ValidationStartEvent,
   ValidationInternalEvent,
   ValidationEndEvent,

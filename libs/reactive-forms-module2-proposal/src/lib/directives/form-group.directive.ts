@@ -48,7 +48,7 @@ export class NgFormGroupDirective extends NgControlDirective<FormGroup>
   readonly control = new FormGroup<any>(
     {},
     {
-      id: Symbol(`NgFormGroupDirective ${NgFormGroupDirective.id++}`),
+      id: Symbol(`NgFormGroupDirective-${NgFormGroupDirective.id++}`),
     },
   );
 

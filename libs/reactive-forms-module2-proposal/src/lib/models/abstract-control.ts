@@ -71,16 +71,12 @@ export class ControlSource<T> extends Subject<T> {
   complete() {}
 }
 
-let _id = 0;
 let _eventId = 0;
 
 export namespace AbstractControl {
   export const ABSTRACT_CONTROL_INTERFACE = Symbol(
     '@@AbstractControlInterface',
   );
-  export function id() {
-    return Symbol(`control-${_id++}`);
-  }
   export function eventId() {
     return (_eventId++).toString();
   }

@@ -45,7 +45,7 @@ export class NgFormControlNameDirective
   valueMapper: ControlValueMapper | undefined;
 
   readonly control = new FormControl<any>({
-    id: Symbol(`NgFormControlNameDirective ${NgFormControlNameDirective.id++}`),
+    id: Symbol(`NgFormControlNameDirective-${NgFormControlNameDirective.id++}`),
   });
 
   readonly accessor: ControlAccessor;

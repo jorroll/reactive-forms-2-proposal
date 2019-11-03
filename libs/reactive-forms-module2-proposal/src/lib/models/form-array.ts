@@ -68,8 +68,6 @@ export class FormArray<
 > {
   static id = 0;
 
-  id = Symbol(`FormArray-${FormArray.id++}`);
-
   protected _controlsStore: ReadonlyMap<Indices<T>, T[Indices<T>]> = new Map();
   get controlsStore() {
     return this._controlsStore;
@@ -77,8 +75,15 @@ export class FormArray<
 
   protected _controls: T;
 
-  constructor(controls: T = ([] as unknown) as T, options?: IFormArrayArgs<D>) {
-    super(extractValue(controls), options);
+  constructor(
+    controls: T = ([] as unknown) as T,
+    options: IFormArrayArgs<D> = {},
+  ) {
+    super(
+      options.id || Symbol(`FormArray-${FormArray.id++}`),
+      extractValue(controls),
+      options,
+    );
 
     this._controls = (controls.slice() as unknown) as T;
     this._controlsStore = new Map<Indices<T>, T[Indices<T>]>(this._controls.map(

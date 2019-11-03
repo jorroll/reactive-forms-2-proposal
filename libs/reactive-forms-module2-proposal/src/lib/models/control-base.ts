@@ -89,7 +89,7 @@ export function composeValidators(
 
 export abstract class ControlBase<Value = any, Data = any>
   implements AbstractControl<Value, Data> {
-  id: ControlId = AbstractControl.id();
+  id: ControlId;
 
   data: Data;
 
@@ -203,8 +203,10 @@ export abstract class ControlBase<Value = any, Data = any>
     return this._validator;
   }
 
-  constructor(value?: Value, options: IControlBaseArgs<Data> = {}) {
-    if (options.id) this.id = options.id;
+  constructor(controlId: ControlId, value?: Value, options: IControlBaseArgs<Data> = {}) {
+    // need to provide ControlId in constructor otherwise
+    // initial errors will have incorrect source ID
+    this.id = controlId;
 
     this.data = options.data as Data;
 

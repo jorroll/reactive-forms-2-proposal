@@ -33,6 +33,8 @@ export class FormGroup<
   FormGroupEnabledValue<T>,
   D
 > {
+  static id = 0;
+
   protected _controlsStore: ReadonlyMap<keyof T, T[keyof T]> = new Map();
   get controlsStore() {
     return this._controlsStore;
@@ -40,8 +42,12 @@ export class FormGroup<
 
   protected _controls: T;
 
-  constructor(controls: T = {} as T, options?: IFormGroupArgs<D>) {
-    super(extractValue<T>(controls), options);
+  constructor(controls: T = {} as T, options: IFormGroupArgs<D> = {}) {
+    super(
+      options.id || Symbol(`FormGroup-${FormGroup.id++}`),
+      extractValue<T>(controls),
+      options,
+    );
 
     this._controls = { ...controls };
     this._controlsStore = new Map<keyof T, T[keyof T]>(Object.entries(

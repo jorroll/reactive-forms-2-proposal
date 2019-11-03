@@ -41,15 +41,18 @@ import { NgControlNameDirective } from './control-name.directive';
 })
 export class NgFormGroupNameDirective extends NgControlNameDirective<FormGroup>
   implements ControlAccessor, OnChanges, OnDestroy {
-    static id = 0;
+  static id = 0;
 
   @Input('ngFormGroupName') controlName!: string;
   @Input('ngFormGroupValueMapper')
   valueMapper: ControlValueMapper | undefined;
 
-  readonly control = new FormGroup<any>({}, {
-    id: Symbol(`NgFormGroupNameDirective ${NgFormGroupNameDirective.id++}`),
-  });
+  readonly control = new FormGroup<any>(
+    {},
+    {
+      id: Symbol(`NgFormGroupNameDirective-${NgFormGroupNameDirective.id++}`),
+    },
+  );
 
   constructor(
     @SkipSelf()
@@ -79,8 +82,8 @@ export class NgFormGroupNameDirective extends NgControlNameDirective<FormGroup>
   protected validateProvidedControl(control: any): control is FormGroup {
     if (!(control instanceof FormGroup)) {
       throw new Error(
-        'NgFormGroupNameDirective must link to an instance of FormGroup'
-      )
+        'NgFormGroupNameDirective must link to an instance of FormGroup',
+      );
     }
 
     return true;

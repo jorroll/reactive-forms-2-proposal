@@ -1,5 +1,9 @@
 /**
- * This code is a modified version of code taken from `@angular/forms`
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
  */
 
 import {
@@ -10,21 +14,14 @@ import {
   Inject,
   Optional,
   Directive,
-  HostListener,
-  OnDestroy,
-  OnInit,
 } from '@angular/core';
 import { ɵgetDOM as getDOM } from '@angular/platform-browser';
-import { filter, map } from 'rxjs/operators';
+import { distinctUntilChanged } from 'rxjs/operators';
 import { setupListeners } from './util';
 import { FormControl } from '../models';
 import { NG_CONTROL_ACCESSOR, ControlAccessor } from './interface';
-import { from, fromEvent, Subscription } from 'rxjs';
 
 /**
- * _Note: I've no idea why this is needed. It's a carry_
- * _over from the `@angular/forms` code which I figured I'd keep._
- *
  * We must check whether the agent is Android because composition events
  * behave differently between iOS and Android.
  */
@@ -78,99 +75,89 @@ export const COMPOSITION_BUFFER_MODE = new InjectionToken<boolean>(
     },
   ],
 })
-// tslint:disable-next-line: directive-class-suffix
-export class DefaultValueAccessor
-  implements ControlAccessor, OnInit, OnDestroy {
+export class DefaultValueAccessor implements ControlAccessor {
   readonly control = new FormControl();
-
-  private subscriptions: Subscription[] = [];
-
-  /** Whether the user is creating a composition string (IME events). */
-  private _composing = false;
 
   constructor(
     protected renderer: Renderer2,
-    protected el: ElementRef<HTMLInputElement>,
+    protected el: ElementRef,
     @Optional()
     @Inject(COMPOSITION_BUFFER_MODE)
-    protected compositionMode: boolean | null,
-  ) {}
+    protected _compositionMode: boolean,
+  ) {
+    setupListeners(this, 'blur', 'onTouched');
+    setupListeners(this, 'input', '_handleInput');
+    setupListeners(this, 'compositionstart', '_compositionStart');
+    setupListeners(this, 'compositionend', '_compositionEnd');
 
-  ngOnInit() {
-    if (this.compositionMode == null) {
-      this.compositionMode = !_isAndroid();
+    if (this._compositionMode == null) {
+      this._compositionMode = !_isAndroid();
     }
 
-    this.subscriptions.push(
-      // watch outside value changes
-      this.control.events
-        .pipe(
-          filter(
-            ({ source, type, changes }) =>
-              source !== this.control.id &&
-              type === 'StateChange' &&
-              changes.has('value'),
-          ),
-          map(({ changes }) => changes.get('value')),
-        )
-        .subscribe(value => {
-          const normalizedValue = value == null ? '' : value;
-          this.renderer.setProperty(
-            this.el.nativeElement,
-            'value',
-            normalizedValue,
-          );
-        }),
-      // watch for focus change events
-      this.control.focusChanges.subscribe(value => {
-        if (value) {
-          this.el.nativeElement.focus();
-        } else {
-          this.el.nativeElement.blur();
-        }
-      }),
-      // monitor disabled state
-      this.control
-        .observe('disabled', { ignoreNoEmit: true })
-        .subscribe(disabled => {
-          this.renderer.setProperty(
-            this.el.nativeElement,
-            'disabled',
-            disabled,
-          );
-        }),
-    );
+    this.control
+      .observe('value', { ignoreNoEmit: true })
+      .subscribe((value: any) => {
+        const normalizedValue = value == null ? '' : value;
+        this.renderer.setProperty(
+          this.el.nativeElement,
+          'value',
+          normalizedValue,
+        );
+      });
+
+    this.control
+      .observe('disabled', { ignoreNoEmit: true })
+      .pipe(distinctUntilChanged())
+      .subscribe(isDisabled => {
+        this.renderer.setProperty(
+          this.el.nativeElement,
+          'disabled',
+          isDisabled,
+        );
+      });
   }
 
-  ngOnDestroy() {
-    this.subscriptions.forEach(sub => sub.unsubscribe());
+  /** Whether the user is creating a composition string (IME events). */
+  private _composing = false;
+  /**
+   * @description
+   * The registered callback function called when an input event occurs on the input element.
+   */
+  onChange = (_: any) => {
+    this.control.markChanged(true);
+    this.control.setValue(_);
   }
 
-  @HostListener('blur') onBlur() {
+  /**
+   * @description
+   * The registered callback function called when a blur event occurs on the input element.
+   */
+  onTouched = () => {
     this.control.markTouched(true);
   }
 
-  @HostListener('input', ['$event']) onInput(event: any) {
+  /** @internal */
+  _handleInput(event: any): void {
     const value = event.target.value;
 
-    if (!this.compositionMode || (this.compositionMode && !this._composing)) {
-      this.control.markChanged(true);
-      this.control.setValue(value);
+    if (!this._compositionMode || (this._compositionMode && !this._composing)) {
+      this.onChange(value);
     }
   }
 
-  @HostListener('compositionstart') onCompositionStart() {
+  /** @internal */
+  _compositionStart(): void {
     this._composing = true;
   }
 
-  @HostListener('compositionend', ['$event']) onCompositionEnd(event: any) {
+  /** @internal */
+  _compositionEnd(event: any): void {
     const value = event.target.value;
 
     this._composing = false;
 
-    if (this.compositionMode) {
-      this.control.markChanged(true);
-      this.control.setValue(value);
+    if (this._compositionMode) {
+      this.onChange(value);
     }
   }
 }

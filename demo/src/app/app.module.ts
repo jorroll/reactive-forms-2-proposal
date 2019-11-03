@@ -29,8 +29,8 @@ import { ExampleSevenComponent } from './examples/07-example-seven/example-seven
 import { ReactiveFormsModule } from '@angular/forms';
 import { ExampleEightComponent } from './examples/08-example-eight/example-eight.component';
 import { ExampleNineComponent } from './examples/09-example-nine/example-nine.component';
-import { ReactiveFormsModule2Proposal } from 'reactive-forms-module2-proposal';
-import { ReactiveFormsModule2ProposalCompat } from 'reactive-forms-module2-proposal/compat';
+import { ReactiveFormsModule2 } from 'reactive-forms-module2-proposal';
+import { ReactiveFormsModule2Compat } from 'reactive-forms-module2-proposal/compat';
 
 @NgModule({
   declarations: [
@@ -53,8 +53,8 @@ import { ReactiveFormsModule2ProposalCompat } from 'reactive-forms-module2-propo
     BrowserModule,
     AppRoutingModule,
     ReactiveFormsModule,
-    ReactiveFormsModule2Proposal,
-    ReactiveFormsModule2ProposalCompat,
+    ReactiveFormsModule2,
+    ReactiveFormsModule2Compat,
     MatCardModule,
     MatInputModule,
     MatProgressSpinnerModule,
