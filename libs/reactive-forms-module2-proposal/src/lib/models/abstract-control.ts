@@ -26,10 +26,6 @@ export interface PartialControlEvent {
   noEmit?: boolean;
 }
 
-export namespace ControlEvent {
-  export const DELETE = Symbol('CONTROL_EVENT_DELETE_TOKEN');
-}
-
 export interface ControlEvent extends PartialControlEvent {
   id: string;
   meta: { [key: string]: any };
@@ -113,15 +109,6 @@ export interface AbstractControl<Value = any, Data = any> {
    */
   source: ControlSource<PartialControlEvent>;
 
-  /**
-   * ***Advanced API***
-   *
-   * The "atomic" map is used by controls + parent ControlContainers to ensure
-   * that parent/child state changes happen atomically before any events are
-   * emitted.
-   */
-  readonly atomic: Map<ControlId, (event: ControlEvent) => (() => void) | null>;
-
   /** An observable of all events for this AbstractControl */
   events: Observable<ControlEvent & { [key: string]: any }>;
 
@@ -178,6 +165,16 @@ export interface AbstractControl<Value = any, Data = any> {
   readonly validatorStore: ReadonlyMap<ControlId, ValidatorFn>;
 
   readonly validator: ValidatorFn | null;
+
+
+  /**
+   * ***Advanced API***
+   *
+   * The "atomic" map is used by controls + parent ControlContainers to ensure
+   * that parent/child state changes happen atomically before any events are
+   * emitted.
+   */
+  readonly atomic: Map<ControlId, (event: ControlEvent) => (() => void) | null>;
 
   [AbstractControl.ABSTRACT_CONTROL_INTERFACE](): this;
 

@@ -38,7 +38,7 @@ When you call a method like `AbstractControl#markTouched()`, that method simply 
 _Figure 2:_
 
 ```ts
-abstract class AbstractControl<V = any, D = any> {
+class FormControl<Value = any, Data = any> implements AbstractControl<Value, Data> {
   id: ControlId;
 
   markTouched(value: boolean, options: ControlEventOptions = {}) {
@@ -56,12 +56,13 @@ abstract class AbstractControl<V = any, D = any> {
 }
 ```
 
-Internally, the AbstractControl subscribes to output from the `source` property and pipes that output to a `protected processEvent()` method. After being processed, a new `ControlEvent` object is emitted from the `events` property which describes the mutations to the control (so when a subscriber receives a ControlEvent from the `events` property, any changes have already been applied to the AbstractControl).
+Internally, the AbstractControl subscribes to output from the `source` property and pipes that output to a `protected processEvent()` method. After being processed, a new `ControlEvent` object containing any changes is emitted from the control's `events` property (so when a subscriber receives a ControlEvent from the `events` property, any changes have already been applied to the AbstractControl).
 
 _Figure 3:_
 
 ```ts
-abstract class AbstractControl<V = any, D = any> {
+class FormControl<Value = any, Data = any>
+  implements AbstractControl<Value, Data> {
   id: ControlId;
 
   constructor() {
