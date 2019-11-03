@@ -4,25 +4,20 @@ import {
   OnChanges,
   Directive,
   Inject,
-  Self,
   SimpleChange,
   SkipSelf,
   Renderer2,
   ElementRef,
   forwardRef,
 } from '@angular/core';
-import { Subscription } from 'rxjs';
-import { AbstractControl, FormControl, FormGroup } from '../models';
-import { ControlValueMapper, ControlAccessorEvent } from './interface';
-import { map, filter } from 'rxjs/operators';
-import { NgBaseDirective, NG_CONTROL_DIRECTIVE } from './base.directive';
+import { FormGroup } from '../models';
+import { ControlValueMapper } from './interface';
+import { NG_CONTROL_DIRECTIVE } from './base.directive';
 import {
   ControlAccessor,
-  NG_CONTROL_ACCESSOR,
   NG_CONTROL_CONTAINER_ACCESSOR,
   ControlContainerAccessor,
 } from '../accessors';
-import { resolveControlAccessor } from './util';
 import { NgControlNameDirective } from './control-name.directive';
 
 @Directive({

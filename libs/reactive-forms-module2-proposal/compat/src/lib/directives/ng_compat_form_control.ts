@@ -157,6 +157,8 @@ export class NgCompatFormControl extends OriginalFormControl {
       return;
     }
     this.swControl.setValue(value, this.options(options));
+    this.swControl.setErrors(this.errors, this.options(options));
+    this.swControl.markPending(false, this.options(options));
   }
 
   patchValue(value: any, options: any = {}) {
@@ -185,6 +187,21 @@ export class NgCompatFormControl extends OriginalFormControl {
     this.swControl.markPending(true, this.options(options));
   }
 
+  updateValueAndValidity(options: any = {}) {
+    const errors = this.errors ? { ...this.errors } : {};
+    super.updateValueAndValidity(options);
+    
+    if (!this.swControl || options.source === this.id) {
+      return;
+    }
+
+    const newErrors = this.errors ? { ...this.errors } : {};
+
+    if (objectsEqual(errors, newErrors)) return;
+
+    this.swControl.setErrors(this.errors, this.options(options));
+  }
+
   get invalid() {
     return this.swControl.invalid;
   }
@@ -192,4 +209,16 @@ export class NgCompatFormControl extends OriginalFormControl {
   get valid() {
     return this.swControl.valid;
   }
+}
+
+function objectsEqual(a: { [key: string]: any }, b: { [key: string]: any }) {
+  if (Object.keys(a).length !== Object.keys(b).length) return false;
+
+  for (const prop in a) {
+    if (!a.hasOwnProperty(prop)) continue;
+
+    if (a[prop] !== b[prop]) return false;
+  }
+
+  return true;
 }

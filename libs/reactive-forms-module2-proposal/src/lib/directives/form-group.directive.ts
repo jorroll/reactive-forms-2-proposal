@@ -11,7 +11,6 @@ import {
   Input,
 } from '@angular/core';
 import { FormGroup } from '../models';
-import { filter } from 'rxjs/operators';
 import { NG_CONTROL_DIRECTIVE } from './base.directive';
 import { resolveControlContainerAccessor } from './util';
 import {

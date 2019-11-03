@@ -11,11 +11,10 @@ import {
   ElementRef,
   forwardRef,
 } from '@angular/core';
-import { Subscription, concat } from 'rxjs';
-import { AbstractControl, FormControl } from '../models';
-import { ControlValueMapper, ControlAccessorEvent } from './interface';
-import { map, filter } from 'rxjs/operators';
-import { NgBaseDirective, NG_CONTROL_DIRECTIVE } from './base.directive';
+import { concat } from 'rxjs';
+import { FormControl } from '../models';
+import { ControlValueMapper } from './interface';
+import { NG_CONTROL_DIRECTIVE } from './base.directive';
 import {
   ControlAccessor,
   NG_CONTROL_ACCESSOR,

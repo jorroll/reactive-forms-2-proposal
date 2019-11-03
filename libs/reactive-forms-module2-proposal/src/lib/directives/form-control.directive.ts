@@ -11,7 +11,6 @@ import {
   Input,
 } from '@angular/core';
 import { FormControl } from '../models';
-import { filter } from 'rxjs/operators';
 import { NG_CONTROL_DIRECTIVE } from './base.directive';
 import { resolveControlAccessor } from './util';
 import { ControlAccessor, NG_CONTROL_ACCESSOR } from '../accessors';
