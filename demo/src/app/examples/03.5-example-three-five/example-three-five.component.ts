@@ -1,11 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { ValidatorFn, FormControl } from 'reactive-forms-module2-proposal';
 import { map } from 'rxjs/operators';
+import { concat } from 'rxjs';
 
 // regex from https://www.regextester.com/96683
 const dateRegex = /^([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))$/;
 
-const dateValidatorFn: ValidatorFn = control => {
+const stringValidatorFn: ValidatorFn = control => {
   if (dateRegex.test(control.value)) {
     return null;
   }
@@ -43,6 +44,16 @@ function stringToDate(text: string) {
   return date;
 }
 
+const dateValidatorFn: ValidatorFn = control => {
+  if (control.value) {
+    return null;
+  }
+
+  return {
+    invalidDate: 'Invalid date format!',
+  };
+};
+
 @Component({
   selector: 'app-example-three-five',
   templateUrl: './example-three-five.component.html',
@@ -50,7 +61,7 @@ function stringToDate(text: string) {
 })
 export class ExampleThreeFiveComponent implements OnInit {
   inputControl = new FormControl('', {
-    validators: dateValidatorFn,
+    validators: stringValidatorFn,
   });
 
   dateControl = new FormControl<Date | null>(null);
@@ -77,34 +88,49 @@ export class ExampleThreeFiveComponent implements OnInit {
     //   and before then filtering out the `StateChange` because the `inputControl` has already
     //   processed it.
 
+    // Important not to sync all the inputControl's state as the `dateControl`
+    // will not play nice with the inputControl's validatorFn (which expects
+    // strings)
     this.inputControl.events
       .pipe(
-        map(state => {
-          if (state.type === 'value') {
+        map(event => {
+          if (event.type === 'StateChange' && event.changes.has('value')) {
+            const changes = new Map(event.changes);
+
+            changes.set('value', stringToDate(event.changes.get('value')));
+
             return {
-              ...state,
-              value: stringToDate(state.value),
+              ...event,
+              changes,
             };
           }
 
-          return state;
+          return event;
         }),
       )
       .subscribe(this.dateControl.source);
 
     this.dateControl.events
       .pipe(
-        map(state => {
-          if (state.type === 'value') {
+        map(event => {
+          if (event.type === 'StateChange' && event.changes.has('value')) {
+            const changes = new Map(event.changes);
+
+            changes.set('value', dateToString(event.changes.get('value')));
+
             return {
-              ...state,
-              value: dateToString(state.value),
+              ...event,
+              changes,
             };
           }
 
-          return state;
+          return event;
         }),
       )
       .subscribe(this.inputControl.source);
+  }
+
+  setDate() {
+    this.dateControl.setValue(new Date());
   }
 }

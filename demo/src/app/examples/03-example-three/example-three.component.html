@@ -24,13 +24,13 @@
       <input
         [ngFormControl]="controlA"
         [ngFormControlValueMapper]="{
-          fromControl: dateToString,
           toControl: stringToDate,
+          toAccessor: dateToString,
           accessorValidator: dateValidatorFn
         }"
       />
 
-      <div *ngIf="controlA.changed && controlA.invalid" class="error">
+      <div *ngIf="controlA.dirty && controlA.invalid" class="error">
         <p>controlA Errors:</p>
         <p>{{ controlA.errors | json }}</p>
       </div>

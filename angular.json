@@ -96,15 +96,15 @@
           }
         },
         "test": {
-          "builder": "@angular-devkit/build-angular:karma",
+          "builder": "@angular-builders/jest:run",
           "options": {
-            "main": "demo/src/test.ts",
-            "polyfills": "demo/src/polyfills.ts",
-            "tsConfig": "tsconfig.spec.json",
-            "karmaConfig": "karma.conf.js",
-            "assets": ["demo/src/favicon.ico", "demo/src/assets"],
-            "styles": ["demo/src/styles.scss"],
-            "scripts": []
+            // "main": "demo/src/test.ts",
+            // "polyfills": "demo/src/polyfills.ts",
+            // "tsConfig": "tsconfig.spec.json",
+            // "karmaConfig": "karma.conf.js",
+            // "assets": ["demo/src/favicon.ico", "demo/src/assets"],
+            // "styles": ["demo/src/styles.scss"],
+            // "scripts": []
           }
         },
         "lint": {
@@ -132,7 +132,7 @@
         }
       }
     },
-    "reactive-forms-module2-proposal": {
+    "rf2": {
       "projectType": "library",
       "root": "libs/reactive-forms-module2-proposal",
       "sourceRoot": "libs/reactive-forms-module2-proposal/src",
@@ -146,12 +146,8 @@
           }
         },
         "test": {
-          "builder": "@angular-devkit/build-angular:karma",
-          "options": {
-            "main": "libs/reactive-forms-module2-proposal/src/test.ts",
-            "tsConfig": "libs/reactive-forms-module2-proposal/tsconfig.spec.json",
-            "karmaConfig": "libs/reactive-forms-module2-proposal/karma.conf.js"
-          }
+          "builder": "@angular-builders/jest:run",
+          "options": {}
         },
         "lint": {
           "builder": "@angular-devkit/build-angular:tslint",

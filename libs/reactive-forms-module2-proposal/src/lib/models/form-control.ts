@@ -1,13 +1,15 @@
 import { ControlBase, IControlBaseArgs } from './control-base';
 
-export type IFormControlArgs<V, D> = IControlBaseArgs<V, D>;
+export type IFormControlArgs<D> = IControlBaseArgs<D>;
 
 export class FormControl<V = any, D = any> extends ControlBase<V, D> {
-  constructor(value?: V, options: IFormControlArgs<V, D> = {}) {
-    super(value, options);
-  }
+  static id = 0;
 
-  get(..._args: any[]): null {
-    return null;
+  constructor(value?: V, options: IFormControlArgs<D> = {}) {
+    super(
+      options.id || Symbol(`FormControl-${FormControl.id++}`),
+      value,
+      options,
+    );
   }
 }

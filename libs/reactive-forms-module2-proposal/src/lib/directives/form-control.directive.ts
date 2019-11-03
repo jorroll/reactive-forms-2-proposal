@@ -11,12 +11,12 @@ import {
   Input,
 } from '@angular/core';
 import { FormControl } from '../models';
-import { filter } from 'rxjs/operators';
 import { NG_CONTROL_DIRECTIVE } from './base.directive';
 import { resolveControlAccessor } from './util';
 import { ControlAccessor, NG_CONTROL_ACCESSOR } from '../accessors';
 import { NgControlDirective } from './control.directive';
-import { ControlStateMapper, ControlValueMapper } from './interface';
+import { ControlValueMapper } from './interface';
+import { concat } from 'rxjs';
 
 @Directive({
   selector: '[ngFormControl]:not([formControl])',
@@ -30,13 +30,15 @@ import { ControlStateMapper, ControlValueMapper } from './interface';
 })
 export class NgFormControlDirective extends NgControlDirective<FormControl>
   implements ControlAccessor, OnChanges, OnDestroy {
+  static id = 0;
   @Input('ngFormControl') providedControl!: FormControl;
-  @Input('ngFormControlStateMapper')
-  stateMapper: ControlStateMapper | undefined;
   @Input('ngFormControlValueMapper')
   valueMapper: ControlValueMapper | undefined;
 
-  readonly control = new FormControl();
+  readonly control = new FormControl<any>(null, {
+    id: Symbol(`NgFormControlDirective-${NgFormControlDirective.id++}`),
+  });
+
   readonly accessor: ControlAccessor;
 
   constructor(
@@ -51,24 +53,26 @@ export class NgFormControlDirective extends NgControlDirective<FormControl>
     this.accessor = resolveControlAccessor(accessors);
 
     this.subscriptions.push(
-      this.accessor.control.replayState().subscribe(this.control.source),
-      this.accessor.control.events
-        .pipe(filter(({ type }) => type !== 'validation'))
-        .subscribe(this.control.source),
-      this.control.events
-        .pipe(filter(({ type }) => type !== 'validation'))
-        .subscribe(this.accessor.control.source),
+      concat(
+        this.accessor.control.replayState(),
+        this.accessor.control.events,
+      ).subscribe(this.control.source),
+      this.control.events.subscribe(this.accessor.control.source),
     );
   }
 
   ngOnChanges(_: {
     providedControl?: SimpleChange;
-    stateMapper?: SimpleChange;
     valueMapper?: SimpleChange;
   }) {
     if (!this.providedControl) {
       throw new Error(`NgFormControlDirective must be passed a ngFormControl`);
     }
+
+    this.assertValidValueMapper(
+      'NgFormControlDirective#ngFormControlValueMapper',
+      this.valueMapper,
+    );
 
     super.ngOnChanges(_);
   }

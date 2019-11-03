@@ -17,21 +17,50 @@ export type AbstractControlData<T> = T extends AbstractControl<any, infer D>
 
 export type ControlId = string | symbol;
 
-export interface ControlEvent<Type extends string, Value> {
+export interface PartialControlEvent {
+  id?: string;
   source: ControlId;
-  readonly applied: ControlId[];
-  type: Type;
-  value: Value;
-  noEmit?: boolean;
+  readonly processed: ControlId[];
+  type: string;
   meta?: { [key: string]: any };
-  [key: string]: any;
+  noEmit?: boolean;
+}
+
+export namespace ControlEvent {
+  export const DELETE = Symbol('CONTROL_EVENT_DELETE_TOKEN');
+}
+
+export interface ControlEvent extends PartialControlEvent {
+  id: string;
+  meta: { [key: string]: any };
+}
+
+export interface ValidationEvent extends ControlEvent {
+  type: 'Validation';
+  label: string;
 }
 
 export interface ControlEventOptions {
   noEmit?: boolean;
   meta?: { [key: string]: any };
+  eventId?: string;
   source?: ControlId;
+  processed?: ControlId[];
 }
+
+export type DeepReadonly<T> = T extends Array<infer R>
+  ? DeepReadonlyArray<R>
+  : T extends Function
+  ? T
+  : T extends object
+  ? DeepReadonlyObject<T>
+  : T;
+
+interface DeepReadonlyArray<T> extends ReadonlyArray<DeepReadonly<T>> {}
+
+type DeepReadonlyObject<T> = {
+  readonly [P in keyof T]: DeepReadonly<T[P]>;
+};
 
 /**
  * ControlSource is a special rxjs Subject which never
@@ -42,29 +71,34 @@ export class ControlSource<T> extends Subject<T> {
   complete() {}
 }
 
-const INTERFACE = '@@AbstractControlInterface';
+let _eventId = 0;
 
-export abstract class AbstractControl<Value = any, Data = any> {
-  static id = 0;
-
-  static readonly ABSTRACT_CONTROL_INTERFACE = INTERFACE;
-
-  static isAbstractControl(object?: any): object is AbstractControl {
+export namespace AbstractControl {
+  export const ABSTRACT_CONTROL_INTERFACE = Symbol(
+    '@@AbstractControlInterface',
+  );
+  export function eventId() {
+    return (_eventId++).toString();
+  }
+  export function isAbstractControl(object?: any): object is AbstractControl {
     return (
       typeof object === 'object' &&
-      typeof object[INTERFACE] === 'function' &&
-      object[INTERFACE]() === object
+      typeof object[AbstractControl.ABSTRACT_CONTROL_INTERFACE] ===
+        'function' &&
+      object[AbstractControl.ABSTRACT_CONTROL_INTERFACE]() === object
     );
   }
+}
 
+export interface AbstractControl<Value = any, Data = any> {
   /**
    * The ID is used to determine where StateChanges originated,
    * and to ensure that a given AbstractControl only processes
    * values one time.
    */
-  id: ControlId = Symbol(`control-${AbstractControl.id}`);
+  readonly id: ControlId;
 
-  abstract data: Data;
+  data: Data;
 
   /**
    * **Warning!** Do not use this property unless you know what you are doing.
@@ -77,47 +111,63 @@ export abstract class AbstractControl<Value = any, Data = any> {
    * Never subscribe to the source directly. If you want to receive events for
    * this control, subscribe to the `events` observable.
    */
-  abstract source: ControlSource<ControlEvent<string, any>>;
+  source: ControlSource<PartialControlEvent>;
+
+  /**
+   * ***Advanced API***
+   *
+   * The "atomic" map is used by controls + parent ControlContainers to ensure
+   * that parent/child state changes happen atomically before any events are
+   * emitted.
+   */
+  readonly atomic: Map<ControlId, (event: ControlEvent) => (() => void) | null>;
 
   /** An observable of all events for this AbstractControl */
-  abstract events: Observable<
-    ControlEvent<string, any> & { stateChange?: boolean }
-  >;
+  events: Observable<ControlEvent & { [key: string]: any }>;
 
-  abstract value: Value;
+  readonly value: DeepReadonly<Value>;
 
-  abstract errors: ValidationErrors | null;
+  readonly errors: ValidationErrors | null;
 
   /**
    * A map of validation errors keyed to the source which added them.
    */
-  abstract errorsStore: ReadonlyMap<ControlId, ValidationErrors>;
+  readonly errorsStore: ReadonlyMap<ControlId, ValidationErrors>;
 
-  abstract disabled: boolean;
-  abstract valid: boolean;
-  abstract invalid: boolean;
-  abstract pending: boolean;
+  readonly disabled: boolean;
+  readonly enabled: boolean;
+  readonly valid: boolean;
+  readonly invalid: boolean;
+  readonly pending: boolean;
 
   /**
    * A map of pending states keyed to the source which added them.
    * So long as there are any `true` boolean values, this control's
    * `pending` property will be `true`.
    */
-  abstract pendingStore: ReadonlyMap<ControlId, true>;
+  readonly pendingStore: ReadonlyMap<ControlId, true>;
 
-  abstract status: 'DISABLED' | 'PENDING' | 'VALID' | 'INVALID';
+  readonly status: 'DISABLED' | 'PENDING' | 'VALID' | 'INVALID';
 
   /**
    * focusChanges allows consumers to be notified when this
    * form control should be focused or blurred.
    */
-  abstract focusChanges: Observable<boolean>;
+  focusChanges: Observable<boolean>;
 
-  abstract readonly: boolean;
-  abstract submitted: boolean;
-  abstract touched: boolean;
-  abstract changed: boolean;
-  abstract dirty: boolean;
+  /**
+   * These are special, internal events which signal when this control is
+   * starting or finishing validation.
+   *
+   * These events are not emitted from the `events` observable.
+   */
+  validationEvents: Observable<ValidationEvent>;
+
+  readonly readonly: boolean;
+  readonly submitted: boolean;
+  readonly touched: boolean;
+  readonly changed: boolean;
+  readonly dirty: boolean;
 
   /**
    * A map of ValidatorFn keyed to the source which added them.
@@ -125,19 +175,13 @@ export abstract class AbstractControl<Value = any, Data = any> {
    * In general, users won't need to access this. But it is exposed for
    * advanced usage.
    */
-  abstract validatorStore: ReadonlyMap<ControlId, ValidatorFn>;
+  readonly validatorStore: ReadonlyMap<ControlId, ValidatorFn>;
 
-  abstract validator: ValidatorFn | null;
+  readonly validator: ValidatorFn | null;
 
-  constructor() {
-    AbstractControl.id++;
-  }
+  [AbstractControl.ABSTRACT_CONTROL_INTERFACE](): this;
 
-  [INTERFACE]() {
-    return this;
-  }
-
-  abstract observeChanges<
+  observeChanges<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -163,7 +207,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     k: K,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D][E][F][G][H][I][J][K] | undefined>;
-  abstract observeChanges<
+  observeChanges<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -187,7 +231,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     j: J,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D][E][F][G][H][I][J] | undefined>;
-  abstract observeChanges<
+  observeChanges<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -209,7 +253,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     i: I,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D][E][F][G][H][I] | undefined>;
-  abstract observeChanges<
+  observeChanges<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -229,7 +273,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     h: H,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D][E][F][G][H] | undefined>;
-  abstract observeChanges<
+  observeChanges<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -247,7 +291,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     g: G,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D][E][F][G] | undefined>;
-  abstract observeChanges<
+  observeChanges<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -263,7 +307,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     f: F,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D][E][F] | undefined>;
-  abstract observeChanges<
+  observeChanges<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -277,7 +321,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     e: E,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D][E] | undefined>;
-  abstract observeChanges<
+  observeChanges<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -289,7 +333,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     d: D,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D] | undefined>;
-  abstract observeChanges<
+  observeChanges<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B]
@@ -299,21 +343,21 @@ export abstract class AbstractControl<Value = any, Data = any> {
     c: C,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C] | undefined>;
-  abstract observeChanges<A extends keyof this, B extends keyof this[A]>(
+  observeChanges<A extends keyof this, B extends keyof this[A]>(
     a: A,
     b: B,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B] | undefined>;
-  abstract observeChanges<A extends keyof this>(
+  observeChanges<A extends keyof this>(
     a: A,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A]>;
-  abstract observeChanges<T = any>(
+  observeChanges<T = any>(
     props: string[],
     options?: { ignoreNoEmit?: boolean },
   ): Observable<T>;
 
-  abstract observe<
+  observe<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -339,7 +383,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     k: K,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D][E][F][G][H][I][J][K] | undefined>;
-  abstract observe<
+  observe<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -363,7 +407,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     j: J,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D][E][F][G][H][I][J] | undefined>;
-  abstract observe<
+  observe<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -385,7 +429,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     i: I,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D][E][F][G][H][I] | undefined>;
-  abstract observe<
+  observe<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -405,7 +449,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     h: H,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D][E][F][G][H] | undefined>;
-  abstract observe<
+  observe<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -423,7 +467,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     g: G,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D][E][F][G] | undefined>;
-  abstract observe<
+  observe<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -439,7 +483,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     f: F,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D][E][F] | undefined>;
-  abstract observe<
+  observe<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -454,7 +498,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D][E] | undefined>;
 
-  abstract observe<
+  observe<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B],
@@ -466,7 +510,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
     d: D,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C][D] | undefined>;
-  abstract observe<
+  observe<
     A extends keyof this,
     B extends keyof this[A],
     C extends keyof this[A][B]
@@ -476,23 +520,25 @@ export abstract class AbstractControl<Value = any, Data = any> {
     c: C,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B][C] | undefined>;
-  abstract observe<A extends keyof this, B extends keyof this[A]>(
+  observe<A extends keyof this, B extends keyof this[A]>(
     a: A,
     b: B,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A][B] | undefined>;
-  abstract observe<A extends keyof this>(
+  observe<A extends keyof this>(
     a: A,
     options?: { ignoreNoEmit?: boolean },
   ): Observable<this[A]>;
-  abstract observe<T = any>(
+  observe<T = any>(
     props: string[],
     options?: { ignoreNoEmit?: boolean },
   ): Observable<T>;
 
-  abstract setValue(value: Value, options?: ControlEventOptions): void;
+  equalValue(value: Value): value is Value;
 
-  abstract patchValue(value: any, options?: ControlEventOptions): void;
+  setValue(value: Value, options?: ControlEventOptions): void;
+
+  patchValue(value: any, options?: ControlEventOptions): void;
 
   /**
    * If provided a `ValidationErrors` object or `null`, replaces the errors
@@ -501,7 +547,7 @@ export abstract class AbstractControl<Value = any, Data = any> {
    * If provided a `Map` object containing `ValidationErrors` keyed to source IDs,
    * uses it to replace the `errorsStore` associated with this control.
    */
-  abstract setErrors(
+  setErrors(
     value: ValidationErrors | null | ReadonlyMap<ControlId, ValidationErrors>,
     options?: ControlEventOptions,
   ): void;
@@ -515,38 +561,34 @@ export abstract class AbstractControl<Value = any, Data = any> {
    * If provided a `Map` object containing `ValidationErrors` keyed to source IDs,
    * that object is merged with the existing `errorsStore`.
    */
-  abstract patchErrors(
+  patchErrors(
     value: ValidationErrors | ReadonlyMap<ControlId, ValidationErrors>,
     options?: ControlEventOptions,
   ): void;
 
-  abstract markTouched(value: boolean, options?: ControlEventOptions): void;
+  markTouched(value: boolean, options?: ControlEventOptions): void;
 
-  abstract markChanged(value: boolean, options?: ControlEventOptions): void;
+  markChanged(value: boolean, options?: ControlEventOptions): void;
 
-  abstract markReadonly(value: boolean, options?: ControlEventOptions): void;
+  markReadonly(value: boolean, options?: ControlEventOptions): void;
 
-  abstract markSubmitted(value: boolean, options?: ControlEventOptions): void;
+  markSubmitted(value: boolean, options?: ControlEventOptions): void;
 
-  abstract markPending(
-    value: boolean,
-    options?: ControlEventOptions & { source?: ControlId },
-  ): void;
-  abstract markPending(
-    value: ReadonlyMap<ControlId, true>,
+  markPending(
+    value: boolean | ReadonlyMap<ControlId, true>,
     options?: ControlEventOptions,
   ): void;
 
-  abstract markDisabled(value: boolean, options?: ControlEventOptions): void;
+  markDisabled(value: boolean, options?: ControlEventOptions): void;
 
-  abstract focus(value?: boolean, options?: ControlEventOptions): void;
+  focus(value?: boolean, options?: ControlEventOptions): void;
 
-  abstract setValidators(
-    value: ValidatorFn | ValidatorFn[] | null,
-    options?: ControlEventOptions & { source?: ControlId },
-  ): void;
-  abstract setValidators(
-    value: ReadonlyMap<ControlId, ValidatorFn>,
+  setValidators(
+    value:
+      | ValidatorFn
+      | ValidatorFn[]
+      | null
+      | ReadonlyMap<ControlId, ValidatorFn>,
     options?: ControlEventOptions,
   ): void;
 
@@ -556,29 +598,19 @@ export abstract class AbstractControl<Value = any, Data = any> {
    * identical to this one. This observable will complete upon
    * replaying the necessary state changes.
    */
-  abstract replayState(
-    options?: ControlEventOptions,
-  ): Observable<ControlEvent<string, any> & { stateChange?: boolean }>;
-
-  /**
-   * This method can be overridden in classes like FormGroup to support retrieving child
-   * abstract controls.
-   */
-  abstract get<A extends AbstractControl = AbstractControl>(
-    ...args: any[]
-  ): A | null;
+  replayState(options?: ControlEventOptions): Observable<ControlEvent>;
 
   /**
    * A convenience method for emitting an arbitrary control event.
    */
-  emitEvent<T extends string, V>(
-    event: Pick<ControlEvent<T, V>, 'type' | 'value'> &
-      Partial<ControlEvent<T, V>>,
-  ): void {
-    this.source.next({
-      source: this.id,
-      applied: [],
-      ...event,
-    });
-  }
+  emitEvent<
+    T extends PartialControlEvent = PartialControlEvent & { [key: string]: any }
+  >(
+    event: Partial<
+      Pick<T, 'id' | 'meta' | 'source' | 'processed' | 'noEmit' | 'meta'>
+    > &
+      Omit<T, 'id' | 'meta' | 'source' | 'processed' | 'noEmit' | 'meta'> & {
+        type: string;
+      },
+  ): void;
 }

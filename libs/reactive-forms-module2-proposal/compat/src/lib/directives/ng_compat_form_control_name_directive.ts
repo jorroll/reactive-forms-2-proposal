@@ -8,14 +8,17 @@ import {
   Self,
   SimpleChange,
   SimpleChanges,
+  SkipSelf,
   forwardRef,
   Renderer2,
 } from '@angular/core';
 import {
   FormControl,
+  NG_CONTROL_CONTAINER_ACCESSOR,
+  ControlContainerAccessor,
   ControlAccessor,
   NG_CONTROL_DIRECTIVE,
-  ɵNgControlDirective,
+  ɵNgControlNameDirective,
 } from 'reactive-forms-module2-proposal';
 
 import {
@@ -27,25 +30,26 @@ import {
 import { NgCompatFormControl } from './ng_compat_form_control';
 
 @Directive({
-  selector: '[ngFormControl][formControl]',
+  selector: '[ngFormControlName][formControl]',
   exportAs: 'ngCompatForm',
   providers: [
     {
       provide: NG_CONTROL_DIRECTIVE,
-      useExisting: forwardRef(() => NgCompatFormControlDirective),
+      useExisting: forwardRef(() => NgCompatFormControlNameDirective),
     },
   ],
 })
-export class NgCompatFormControlDirective
-  extends ɵNgControlDirective<FormControl>
+export class NgCompatFormControlNameDirective
+  extends ɵNgControlNameDirective<FormControl>
   implements ControlAccessor, OnChanges, OnDestroy {
   static id = 0;
-  @Input('ngFormControl') providedControl!: FormControl;
+
+  @Input('ngFormControlName') controlName!: string;
 
   protected ngControl = new NgCompatFormControl(
     new FormControl(undefined, {
       id: Symbol(
-        `NgCompatFormControlDirective-${NgCompatFormControlDirective.id++}`,
+        `NgCompatFormControlNameDirective-${NgCompatFormControlNameDirective.id++}`,
       ),
     }),
   );
@@ -58,6 +62,9 @@ export class NgCompatFormControlDirective
     @Self()
     @Inject(NgControl)
     protected ngDirective: FormControlDirective,
+    @SkipSelf()
+    @Inject(NG_CONTROL_CONTAINER_ACCESSOR)
+    protected containerAccessor: ControlContainerAccessor,
     renderer: Renderer2,
     el: ElementRef,
   ) {
@@ -82,19 +89,23 @@ export class NgCompatFormControlDirective
     this.valueAccessor = this.ngDirective.valueAccessor;
   }
 
-  ngOnChanges(changes: { providedControl?: SimpleChange }) {
-    if (!this.providedControl) {
+  ngOnChanges(_: { controlName?: SimpleChange }) {
+    if (!this.controlName) {
       throw new Error(
-        `NgCompatFormControlDirective must be passed a FormControl`,
+        `NgCompatFormControlNameDirective must be passed a ngFormControlName`,
       );
     }
 
-    if (!this.valueAccessor) {
+    super.ngOnChanges(_);
+  }
+
+  protected validateProvidedControl(control: any): control is FormControl {
+    if (!(control instanceof FormControl)) {
       throw new Error(
-        `NgCompatFormControlDirective could not find valueAccessor`,
+        'NgCompatFormControlNameDirective must link to an instance of FormControl',
       );
     }
 
-    super.ngOnChanges(changes);
+    return true;
   }
 }

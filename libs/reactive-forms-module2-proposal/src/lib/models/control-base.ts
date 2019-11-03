@@ -4,8 +4,11 @@ import {
   ValidatorFn,
   ValidationErrors,
   ControlSource,
-  ControlEvent,
+  PartialControlEvent,
   ControlEventOptions,
+  DeepReadonly,
+  ControlEvent,
+  ValidationEvent,
 } from './abstract-control';
 import {
   filter,
@@ -17,12 +20,40 @@ import {
   shareReplay,
   skip,
 } from 'rxjs/operators';
-import { Observable, from } from 'rxjs';
+import { Observable, from, merge, of } from 'rxjs';
+import { isMapEqual, isTruthy, isProcessed, pluckOptions } from './util';
 
 export type ControlBaseValue<T> = T extends ControlBase<infer V, any> ? V : any;
 export type ControlBaseData<T> = T extends ControlBase<any, infer D> ? D : any;
 
-export interface IControlBaseArgs<Value = any, Data = any> {
+export interface StateChange extends ControlEvent {
+  type: 'StateChange';
+  changes: ReadonlyMap<string, any>;
+}
+
+export interface FocusEvent extends ControlEvent {
+  type: 'Focus';
+  focus: boolean;
+}
+
+export interface ValidationStartEvent<T = any> extends ValidationEvent {
+  label: 'Start';
+  controlValue: T;
+}
+
+export interface ValidationInternalEvent<T = any> extends ValidationEvent {
+  label: 'InternalComplete';
+  controlValue: T;
+  validationResult: ValidationErrors | null;
+}
+
+export interface ValidationEndEvent<T = any> extends ValidationEvent {
+  label: 'End';
+  controlValue: T;
+  controlValid: boolean;
+}
+
+export interface IControlBaseArgs<Data = any> {
   data?: Data;
   validators?:
     | ValidatorFn
@@ -37,10 +68,6 @@ export interface IControlBaseArgs<Value = any, Data = any> {
   changed?: boolean;
   id?: ControlId;
 }
-
-export type OutputControlEvent = Observable<
-  Omit<ControlEvent<string, any>, 'stateChange'> & { stateChange: boolean }
->;
 
 export function composeValidators(
   validators: undefined | null | ValidatorFn | ValidatorFn[],
@@ -60,39 +87,24 @@ export function composeValidators(
   return validators;
 }
 
-export abstract class ControlBase<
-  Value = any,
-  Data = any
-> extends AbstractControl<Value, Data> {
+export abstract class ControlBase<Value = any, Data = any>
+  implements AbstractControl<Value, Data> {
+  id: ControlId;
+
   data: Data;
 
-  source = new ControlSource<ControlEvent<string, any>>();
+  source = new ControlSource<PartialControlEvent>();
 
-  events = (this.source.pipe(
-    filter(
-      // make sure we don't process an event we already processed
-      event => !event.applied.includes(this.id),
-    ),
-    tap(event => {
-      // Add our ID to the `applied` array to indicate that this control
-      // has already processed this event and doesn't need to
-      // do so again.
-      //
-      // It's important that we `push()` the new ID in to keep the same
-      // array reference
-      event.applied.push(this.id);
+  readonly atomic = new Map<ControlId, (event: ControlEvent) => ((() => void) | null)>();
 
-      // processEvent adds the `stateChange` property
-      this.processEvent(event);
-    }),
-    share(),
-  ) as any) as Observable<
-    ControlEvent<string, any> & { stateChange?: boolean }
-  >;
+  protected _events = new ControlSource<ControlEvent>();
+  events: Observable<
+    ControlEvent & { [key: string]: any }
+  > = this._events.asObservable();
 
   protected _value: Value;
   get value() {
-    return this._value;
+    return this._value as DeepReadonly<Value>;
   }
 
   protected _errors: ValidationErrors | null = null;
@@ -100,25 +112,36 @@ export abstract class ControlBase<
     return this._errors;
   }
 
-  errorsStore: ReadonlyMap<ControlId, ValidationErrors> = new Map<
+  protected _errorsStore: ReadonlyMap<ControlId, ValidationErrors> = new Map<
     ControlId,
     ValidationErrors
   >();
+  get errorsStore() {
+    return this._errorsStore;
+  }
 
   protected _disabled = false;
   get disabled() {
     return this._disabled;
   }
+  get enabled() {
+    return !this._disabled;
+  }
 
   get valid() {
-    return !this.errors;
+    return !this._errors;
   }
-
   get invalid() {
-    return !!this.errors;
+    return !!this._errors;
   }
 
-  pendingStore: ReadonlyMap<ControlId, true> = new Map<ControlId, true>();
+  protected _pendingStore: ReadonlyMap<ControlId, true> = new Map<
+    ControlId,
+    true
+  >();
+  get pendingStore() {
+    return this._pendingStore;
+  }
 
   protected _pending = false;
   get pending() {
@@ -127,17 +150,20 @@ export abstract class ControlBase<
 
   get status() {
     // prettier-ignore
-    return this.disabled ? 'DISABLED'
-      : this.pending ? 'PENDING'
+    return this._disabled ? 'DISABLED'
+      : this._pending ? 'PENDING'
       : this.valid ? 'VALID'
       : 'INVALID';
   }
 
   focusChanges: Observable<boolean> = this.events.pipe(
     filter(({ type, noEmit }) => type === 'focus' && !noEmit),
-    map(state => state.value),
+    map(event => (event as FocusEvent).focus),
     share(),
   );
+
+  protected _validationEvents = new ControlSource<ValidationEvent>();
+  validationEvents = this._validationEvents.asObservable();
 
   protected _readonly = false;
   get readonly() {
@@ -164,25 +190,56 @@ export abstract class ControlBase<
     return this._touched || this._changed;
   }
 
-  validatorStore: ReadonlyMap<ControlId, ValidatorFn> = new Map<
+  protected _validatorStore: ReadonlyMap<ControlId, ValidatorFn> = new Map<
     ControlId,
     ValidatorFn
   >();
+  get validatorStore() {
+    return this._validatorStore;
+  }
 
   protected _validator: ValidatorFn | null = null;
   get validator() {
     return this._validator;
   }
 
-  constructor(value?: Value, options: IControlBaseArgs<Value, Data> = {}) {
-    super();
-    if (options.id) this.id = options.id;
+  constructor(controlId: ControlId, value?: Value, options: IControlBaseArgs<Data> = {}) {
+    // need to provide ControlId in constructor otherwise
+    // initial errors will have incorrect source ID
+    this.id = controlId;
 
     this.data = options.data as Data;
 
     // need to maintain one subscription for the
     // observable to fire and the logic to process
-    this.events.subscribe();
+    this.source
+      .pipe(
+        filter(
+          // make sure we don't process an event we already processed
+          event => !event.processed.includes(this.id),
+        ),
+      )
+      .subscribe(event => {
+        event.processed.push(this.id);
+        if (!event.meta) event.meta = {};
+        if (!event.id) event.id = AbstractControl.eventId();
+
+        const newEvent = this.processEvent(event as ControlEvent);
+
+        if (newEvent) {
+          const callbacks: Array<() => void> = [];
+
+          this.atomic.forEach(transaction => {
+            const fn = transaction(newEvent);
+
+            if (fn) callbacks.push(fn);
+          });
+
+          this._events.next(newEvent);
+
+          callbacks.forEach(fn => fn());
+        }
+      });
 
     this._disabled = !!options.disabled;
     this._readonly = !!options.readonly;
@@ -193,21 +250,21 @@ export abstract class ControlBase<
     this._value = value!;
 
     if (options.pending instanceof Map) {
-      this.pendingStore = new Map(options.pending);
+      this._pendingStore = new Map(options.pending);
     } else if (options.pending) {
-      this.pendingStore = new Map([[this.id, true]]);
+      this._pendingStore = new Map([[this.id, true]]);
     } else {
-      this.pendingStore = new Map();
+      this._pendingStore = new Map();
     }
 
     this._pending = Array.from(this.pendingStore.values()).some(val => val);
 
     if (options.validators instanceof Map) {
-      this.validatorStore = new Map(options.validators);
+      this._validatorStore = new Map(options.validators);
     } else if (!options.validators) {
-      this.validatorStore = new Map();
+      this._validatorStore = new Map();
     } else {
-      this.validatorStore = new Map([
+      this._validatorStore = new Map([
         [this.id, composeValidators(options.validators as ValidatorFn)!],
       ]);
     }
@@ -216,7 +273,7 @@ export abstract class ControlBase<
       Array.from(this.validatorStore.values()),
     );
 
-    this.updateValidation();
+    this.updateValidation(new Map());
   }
 
   observeChanges<
@@ -427,12 +484,12 @@ export abstract class ControlBase<
 
     return this.events.pipe(
       filter(
-        ({ noEmit, stateChange }) =>
-          !!stateChange && (options.ignoreNoEmit || !noEmit),
+        ({ noEmit, type }) =>
+          type === 'StateChange' && (options.ignoreNoEmit || !noEmit),
       ),
       // here we load the current value into the `distinctUntilChanged`
       // filter (and skip it) so that the first emission is a change.
-      startWith({} as ControlEvent<string, any>),
+      startWith({} as PartialControlEvent),
       map(() =>
         props.reduce(
           (prev, curr) => {
@@ -659,10 +716,10 @@ export abstract class ControlBase<
 
     return this.events.pipe(
       filter(
-        ({ noEmit, stateChange }) =>
-          !!stateChange && (options.ignoreNoEmit || !noEmit),
+        ({ noEmit, type }) =>
+          type === 'StateChange' && (options.ignoreNoEmit || !noEmit),
       ),
-      startWith({} as ControlEvent<string, any>),
+      startWith({} as PartialControlEvent),
       map(() =>
         props.reduce(
           (prev, curr) => {
@@ -681,7 +738,11 @@ export abstract class ControlBase<
   }
 
   setValue(value: Value, options?: ControlEventOptions) {
-    this.source.next(this.buildEvent('value', value, options));
+    this.emitEvent<StateChange>({
+      type: 'StateChange',
+      changes: new Map<string, any>([['value', value]]),
+      ...pluckOptions(options),
+    });
   }
 
   patchValue(value: any, options?: ControlEventOptions) {
@@ -692,114 +753,170 @@ export abstract class ControlBase<
     value: ValidationErrors | null | ReadonlyMap<ControlId, ValidationErrors>,
     options: ControlEventOptions = {},
   ) {
-    if (value instanceof Map) {
-      this.source.next(this.buildEvent('errorsStore', value, options));
-    } else {
-      const source = options.source || this.id;
+    if (isProcessed(this.id, options)) return;
 
-      this.source.next({
-        source,
-        applied: [],
-        type: 'errors',
-        value,
-        noEmit: options.noEmit,
-        meta: options.meta,
+    if (value instanceof Map) {
+      if (isMapEqual(this.errorsStore, value)) return;
+
+      this.emitEvent<StateChange>({
+        type: 'StateChange',
+        changes: new Map<string, any>([['errorsStore', value]]),
+        ...pluckOptions(options),
       });
+
+      return;
     }
+
+    const store = new Map(this.errorsStore);
+
+    if (!value) {
+      store.delete(options.source || this.id);
+    } else {
+      store.set(options.source || this.id, value);
+    }
+
+    this.emitEvent<StateChange>({
+      type: 'StateChange',
+      changes: new Map<string, any>([['errorsStore', store]]),
+      ...pluckOptions(options),
+    });
   }
 
   patchErrors(
     value: ValidationErrors | ReadonlyMap<ControlId, ValidationErrors>,
     options: ControlEventOptions = {},
   ) {
+    if (isProcessed(this.id, options)) return;
+
     if (value instanceof Map) {
-      const newValue = new Map([
-        ...this.errorsStore.entries(),
-        ...value.entries(),
-      ]);
+      if (isMapEqual(this.errorsStore, value)) return;
 
-      this.source.next(this.buildEvent('errorsStore', newValue, options));
-    } else {
-      const source = options.source || this.id;
-
-      let newValue: ValidationErrors = value;
-
-      if (Object.entries(newValue).length === 0) return;
-
-      let existingValue = this.errorsStore.get(source);
-
-      if (existingValue) {
-        existingValue = { ...existingValue };
-
-        Object.entries(newValue).forEach(([key, err]) => {
-          if (err === null) {
-            delete existingValue![key];
-          } else {
-            existingValue![key] = err;
-          }
-        });
-
-        newValue = existingValue;
-      }
-
-      this.source.next({
-        source,
-        applied: [],
-        type: 'errors',
-        value: newValue,
-        noEmit: options.noEmit,
-        meta: options.meta,
+      this.emitEvent<StateChange>({
+        type: 'StateChange',
+        changes: new Map<string, any>([
+          [
+            'errorsStore',
+            new Map<ControlId, ValidationErrors>([
+              ...this.errorsStore,
+              ...value,
+            ]),
+          ],
+        ]),
+        ...pluckOptions(options),
       });
+
+      return;
     }
+
+    const source = options.source || this.id;
+
+    let newValue: ValidationErrors = value;
+
+    if (Object.entries(newValue).length === 0) return;
+
+    let existingValue = this.errorsStore.get(source);
+
+    if (existingValue) {
+      existingValue = { ...existingValue };
+
+      Object.entries(newValue).forEach(([key, err]) => {
+        if (err === null) {
+          delete existingValue![key];
+        } else {
+          existingValue![key] = err;
+        }
+      });
+
+      newValue = existingValue;
+    }
+
+    const store = new Map(this.errorsStore);
+
+    store.set(options.source || this.id, newValue);
+
+    this.emitEvent<StateChange>({
+      type: 'StateChange',
+      changes: new Map<string, any>([['errorsStore', store]]),
+      ...pluckOptions(options),
+    });
   }
 
   markTouched(value: boolean, options?: ControlEventOptions) {
-    if (value !== this._touched) {
-      this.source.next(this.buildEvent('touched', value, options));
-    }
+    if (isProcessed(this.id, options) || value === this._touched) return;
+
+    this.emitEvent<StateChange>({
+      type: 'StateChange',
+      changes: new Map<string, any>([['touched', value]]),
+      ...pluckOptions(options),
+    });
   }
 
   markChanged(value: boolean, options?: ControlEventOptions) {
-    if (value !== this._changed) {
-      this.source.next(this.buildEvent('changed', value, options));
-    }
+    if (isProcessed(this.id, options) || value === this._changed) return;
+
+    this.emitEvent<StateChange>({
+      type: 'StateChange',
+      changes: new Map<string, any>([['changed', value]]),
+      ...pluckOptions(options),
+    });
   }
 
   markReadonly(value: boolean, options?: ControlEventOptions) {
-    if (value !== this._readonly) {
-      this.source.next(this.buildEvent('readonly', value, options));
-    }
+    if (isProcessed(this.id, options) || value === this._readonly) return;
+
+    this.emitEvent<StateChange>({
+      type: 'StateChange',
+      changes: new Map<string, any>([['readonly', value]]),
+      ...pluckOptions(options),
+    });
   }
 
   markSubmitted(value: boolean, options?: ControlEventOptions) {
-    if (value !== this._submitted) {
-      this.source.next(this.buildEvent('submitted', value, options));
-    }
+    if (isProcessed(this.id, options) || value === this._submitted) return;
+
+    this.emitEvent<StateChange>({
+      type: 'StateChange',
+      changes: new Map<string, any>([['submitted', value]]),
+      ...pluckOptions(options),
+    });
   }
 
   markPending(
     value: boolean | ReadonlyMap<ControlId, true>,
     options: ControlEventOptions = {},
   ) {
-    this.source.next(
-      this.buildEvent(
-        value instanceof Map ? 'pendingStore' : 'pending',
-        value,
-        options,
-      ),
-    );
+    if (isProcessed(this.id, options)) return;
+
+    const store =
+      value instanceof Map
+        ? value
+        : new Map([...this.pendingStore, [options.source || this.id, value]]);
+
+    if (isMapEqual(this.pendingStore, store)) return;
+
+    this.emitEvent<StateChange>({
+      type: 'StateChange',
+      changes: new Map<string, any>([['pendingStore', store]]),
+      ...pluckOptions(options),
+    });
   }
 
   markDisabled(value: boolean, options?: ControlEventOptions) {
-    if (value !== this._disabled) {
-      this.source.next(this.buildEvent('disabled', value, options));
-    }
+    if (isProcessed(this.id, options) || value === this._disabled) return;
+
+    this.emitEvent<StateChange>({
+      type: 'StateChange',
+      changes: new Map<string, any>([['disabled', value]]),
+      ...pluckOptions(options),
+    });
   }
 
   focus(value?: boolean, options?: ControlEventOptions) {
-    this.source.next(
-      this.buildEvent('focus', value === undefined ? true : value, options),
-    );
+    this.emitEvent<FocusEvent>({
+      type: 'Focus',
+      focus: value === undefined ? true : value,
+      ...pluckOptions(options),
+    });
   }
 
   setValidators(
@@ -810,231 +927,282 @@ export abstract class ControlBase<
       | null,
     options: ControlEventOptions = {},
   ) {
-    this.source.next(
-      this.buildEvent(
-        value instanceof Map ? 'validatorStore' : 'validators',
-        value,
-        options,
-      ),
-    );
+    if (isProcessed(this.id, options)) return;
+
+    if (value instanceof Map) {
+      this.emitEvent<StateChange>({
+        type: 'StateChange',
+        changes: new Map<string, any>([['validatorStore', value]]),
+        ...pluckOptions(options),
+      });
+
+      return;
+    }
+
+    const fn = composeValidators(value as ValidatorFn | ValidatorFn[] | null);
+
+    const store = new Map(this.validatorStore);
+
+    if (!fn) {
+      store.delete(options.source || this.id);
+    } else {
+      store.set(options.source || this.id, fn);
+    }
+
+    this.emitEvent<StateChange>({
+      type: 'StateChange',
+      changes: new Map<string, any>([['validatorStore', store]]),
+      ...pluckOptions(options),
+    });
   }
 
-  replayState(options: ControlEventOptions = {}) {
-    const state: Array<
-      ControlEvent<string, any> & { stateChange?: boolean }
-    > = [
-      this.buildEvent('touched', this.touched, options),
-      this.buildEvent('changed', this.changed, options),
-      this.buildEvent('readonly', this.readonly, options),
-      this.buildEvent('submitted', this.submitted, options),
-      this.buildEvent('disabled', this.disabled, options),
-      this.buildEvent('pendingStore', this.pendingStore, options),
-      this.buildEvent('validatorStore', this.validatorStore, options),
-      this.buildEvent('errorsStore', this.errorsStore, options),
-    ];
-
-    state.push(this.buildEvent('value', this.value, options));
-
-    return from(state).pipe(
+  replayState(options: ControlEventOptions = {}): Observable<StateChange> {
+    return of({
+      id: '',
+      source: options.source || this.id,
+      processed: [this.id],
+      type: 'StateChange' as const,
+      changes: new Map<string, any>([
+        ['disabled', this._disabled],
+        ['errorsStore', this.errorsStore],
+        ['pendingStore', this.pendingStore],
+        ['validatorStore', this.validatorStore],
+        ['value', this._value],
+        ['touched', this._touched],
+        ['changed', this._changed],
+        ['readonly', this._readonly],
+        ['submitted', this._submitted],
+      ]),
+      noEmit: options.noEmit,
+      meta: options.meta || {},
+    }).pipe(
       map(event => {
         // we reset the applied array so that this saved
         // state change can be applied to the same control
         // multiple times
-        (event as any).applied = [];
-        event.stateChange = true;
+        event.id = AbstractControl.eventId();
+        (event as any).processed = [];
         return event;
       }),
     );
   }
 
-  protected buildEvent<T extends string, V>(
-    type: T,
-    value: V,
-    { noEmit, meta, source }: ControlEventOptions = {},
-    custom: { [key: string]: any } = {},
-  ): ControlEvent<T, V> {
-    return {
-      source: source || this.id,
-      applied: [],
-      type,
-      value,
-      noEmit,
-      meta,
-      ...custom,
-    };
+  /**
+   * A convenience method for emitting an arbitrary control event.
+   */
+  emitEvent<
+    T extends PartialControlEvent = PartialControlEvent & { [key: string]: any }
+  >(
+    event: Partial<
+      Pick<T, 'id' | 'meta' | 'source' | 'processed' | 'noEmit' | 'meta'>
+    > &
+      Omit<T, 'id' | 'meta' | 'source' | 'processed' | 'noEmit' | 'meta'> & {
+        type: string;
+      },
+  ): void {
+    this.source.next({
+      source: this.id,
+      processed: [],
+      ...event,
+    });
   }
 
-  protected updateValidation({ noEmit, meta }: ControlEventOptions = {}) {
-    // Validation lifecycle hook
-    this.emitEvent({
-      type: 'validation',
-      value: 'internalStart',
-      controlValue: this.value,
-      noEmit,
-      meta,
-    });
+  equalValue(value: Value): value is Value {
+    return this._value === value;
+  }
 
-    const validationResult: (Readonly<ValidationErrors>) | null = this.validator
+  [AbstractControl.ABSTRACT_CONTROL_INTERFACE]() {
+    return this;
+  }
+
+  protected updateValidation(
+    changes: Map<any, any>,
+    options: Omit<ControlEventOptions, 'processed' | 'source'> = {},
+  ) {
+    // Validation lifecycle hook
+    this._validationEvents.next({
+      type: 'Validation',
+      label: 'Start',
+      controlValue: this._value,
+      ...pluckOptions(options),
+      source: this.id,
+      processed: [],
+    } as ValidationStartEvent<Value>);
+
+    const errors: (Readonly<ValidationErrors>) | null = this.validator
       ? this.validator(this)
       : null;
 
-    this.setErrors(validationResult, { noEmit, meta });
+    const errorsStore = new Map(this.errorsStore);
+    let change = false;
+
+    if (errors && Object.keys(errors).length !== 0) {
+      change = true;
+      errorsStore.set(this.id, errors);
+    } else if (errorsStore.delete(this.id)) {
+      change = true;
+    }
+
+    if (change) {
+      this._errorsStore = errorsStore;
+      this._errors = Array.from(errorsStore.values()).reduce(
+        (prev, curr) => {
+          if (!curr) return prev;
+          if (!prev) return curr;
+          return { ...prev, ...curr };
+        },
+        null as ValidationErrors | null,
+      );
+
+      changes.set('errorsStore', new Map(errorsStore));
+    }
 
     // Validation lifecycle hook
-    this.emitEvent({
-      type: 'validation',
-      value: 'internalEnd',
-      controlValue: this.value,
-      validationResult,
-      noEmit,
-      meta,
-    });
+    this._validationEvents.next({
+      type: 'Validation',
+      label: 'InternalComplete',
+      controlValue: this._value,
+      validationResult: errors,
+      ...pluckOptions(options),
+      source: this.id,
+      processed: [],
+    } as ValidationInternalEvent<Value>);
 
     // Validation lifecycle hook
-    this.emitEvent({
-      type: 'validation',
-      value: 'end',
-      controlValue: this.value,
+    this._validationEvents.next({
+      type: 'Validation',
+      label: 'End',
+      controlValue: this._value,
       controlValid: this.valid,
-      noEmit,
-      meta,
-    });
+      ...pluckOptions(options),
+      source: this.id,
+      processed: [],
+    } as ValidationEndEvent<Value>);
   }
 
-  private processErrors() {
-    return Array.from(this.errorsStore.values()).reduce(
-      (prev, curr) => {
-        if (!curr) return prev;
-        if (!prev) return curr;
-        return { ...prev, ...curr };
-      },
-      null as ValidationErrors | null,
-    );
+  protected processEvent(event: ControlEvent): ControlEvent | null {
+    switch (event.type) {
+      case 'StateChange': {
+        const changes = new Map<string, any>();
+
+        (event as StateChange).changes.forEach((value, prop) => {
+          this.processStateChange({
+            event: event as StateChange,
+            value,
+            prop,
+            changes,
+          });
+        });
+
+        if (changes.size === 0) return null;
+
+        return {
+          ...event,
+          changes,
+        } as StateChange;
+      }
+    }
+
+    return null;
   }
 
   /**
    * Processes a control event. If the event is recognized by this control,
    * `processEvent()` will return `true`. Otherwise, `false` is returned.
+   *
+   * In general, ControlEvents should not emit additional ControlEvents
    */
-  protected processEvent(
-    event: ControlEvent<string, any> & { stateChange?: boolean },
-  ) {
-    switch (event.type) {
+  protected processStateChange(args: {
+    event: StateChange;
+    value: any;
+    prop: string;
+    changes: Map<string, any>;
+  }): boolean {
+    const { event, value, prop, changes } = args;
+
+    switch (prop) {
       case 'value': {
-        event.stateChange = true;
-        this._value = event.value;
-        this.updateValidation(event);
-
-        return true;
-      }
-      case 'errors': {
-        event.stateChange = true;
-        if (event.value && Object.entries(event.value).length !== 0) {
-          (this.errorsStore as Map<ControlId, ValidationErrors>).set(
-            event.source,
-            event.value,
-          );
-        } else {
-          (this.errorsStore as Map<ControlId, ValidationErrors>).delete(
-            event.source,
-          );
-        }
-
-        this._errors = this.processErrors();
-
-        return true;
-      }
-      case 'errorsStore': {
-        event.stateChange = true;
-        this.errorsStore = new Map(event.value);
-
-        this._errors = this.processErrors();
-
+        if (this.equalValue(value)) return true;
+        this._value = value;
+        // Note: following the addition of the `atomic` API, I'm not sure 
+        // if the below comment is still true. Not going to bother testing
+        // now though:
+        // 
+        // The updateValidation call ("errorsStore" change) *must* come before
+        // the "value" change. If not, then the errors
+        // of linked controls will not be properly cleared.
+        this.updateValidation(changes, event);
+        changes.set('value', value);
         return true;
       }
       case 'submitted': {
-        event.stateChange = true;
-        this._submitted = event.value;
+        if (this._submitted === value) return true;
+        this._submitted = value;
+        changes.set('submitted', value);
         return true;
       }
       case 'touched': {
-        event.stateChange = true;
-        this._touched = event.value;
+        if (this._touched === value) return true;
+        this._touched = value;
+        changes.set('touched', value);
         return true;
       }
       case 'changed': {
-        event.stateChange = true;
-        this._changed = event.value;
+        if (this._changed === value) return true;
+        this._changed = value;
+        changes.set('changed', value);
         return true;
       }
       case 'readonly': {
-        event.stateChange = true;
-        this._readonly = event.value;
+        if (this._readonly === value) return true;
+        this._readonly = value;
+        changes.set('readonly', value);
         return true;
       }
       case 'disabled': {
-        event.stateChange = true;
-        this._disabled = event.value;
+        if (this._disabled === value) return true;
+        this._disabled = value;
+        changes.set('disabled', value);
         return true;
       }
-      case 'pending': {
-        event.stateChange = true;
-        if (event.value) {
-          (this.pendingStore as Map<ControlId, true>).set(event.source, true);
-        } else {
-          (this.pendingStore as Map<ControlId, true>).delete(event.source);
-        }
-
-        this._pending = Array.from(this.pendingStore.values()).some(val => val);
-
+      case 'errorsStore': {
+        if (isMapEqual(this._errorsStore, value)) return true;
+        this._errorsStore = new Map(value);
+        const errors = Array.from(this.errorsStore.values()).reduce(
+          (prev, err) => ({
+            ...prev,
+            ...err,
+          }),
+          {} as ValidationErrors,
+        );
+        this._errors = Object.keys(errors).length > 0 ? errors : null;
+        changes.set('errorsStore', new Map(this._errorsStore));
         return true;
       }
       case 'pendingStore': {
-        event.stateChange = true;
-        this.pendingStore = new Map(event.value);
-
-        this._pending = Array.from(this.pendingStore.values()).some(val => val);
-
-        return true;
-      }
-      case 'validators': {
-        event.stateChange = true;
-        if (event.value === null) {
-          (this.validatorStore as Map<ControlId, ValidatorFn>).delete(
-            event.source,
-          );
-        } else {
-          (this.validatorStore as Map<ControlId, ValidatorFn>).set(
-            event.source,
-            composeValidators(event.value)!,
-          );
-        }
-
-        this._validator = composeValidators(
-          Array.from(this.validatorStore.values()),
+        if (isMapEqual(this._pendingStore, value)) return true;
+        this._pendingStore = new Map(value);
+        this._pending = Array.from(this._pendingStore.values()).some(
+          val => val,
         );
-
-        this.updateValidation(event);
+        changes.set('pendingStore', new Map(this._pendingStore));
         return true;
       }
       case 'validatorStore': {
-        event.stateChange = true;
-        this.validatorStore = new Map(event.value);
-
+        if (isMapEqual(this._validatorStore, value)) return true;
+        this._validatorStore = new Map(value);
         this._validator = composeValidators(
-          Array.from(this.validatorStore.values()),
+          Array.from(this._validatorStore.values()),
         );
-
-        this.updateValidation(event);
+        // As with the "value" change, I think "updateValidation"
+        // needs to come before the "validatorStore" change is set
+        this.updateValidation(changes, event);
+        changes.set('validatorStore', new Map(this._validatorStore));
         return true;
       }
-      case 'data': {
-        event.stateChange = true;
-        this.data = event.value;
-        return true;
+      default: {
+        return false;
       }
     }
-
-    return false;
   }
 }

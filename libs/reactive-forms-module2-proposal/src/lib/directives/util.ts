@@ -3,7 +3,7 @@ import {
   DefaultValueAccessor,
   ControlContainerAccessor,
 } from '../accessors';
-import { ControlContainer } from '../models';
+import { ControlContainer, PartialControlEvent, StateChange } from '../models';
 
 const STD_ACCESSORS: ControlAccessor[] = [];
 
@@ -69,4 +69,18 @@ export function resolveControlContainerAccessor(
   } else {
     throw new Error('Could not find control container accessor');
   }
+}
+
+export function isStateChange(
+  event: PartialControlEvent,
+): event is StateChange {
+  return event.type === 'StateChange';
+}
+
+export function isValueStateChange(
+  event: PartialControlEvent,
+): event is StateChange {
+  return (
+    event.type === 'StateChange' && (event as StateChange).changes.has('value')
+  );
 }

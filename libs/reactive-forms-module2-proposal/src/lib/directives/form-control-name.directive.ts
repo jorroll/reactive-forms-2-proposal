@@ -11,11 +11,10 @@ import {
   ElementRef,
   forwardRef,
 } from '@angular/core';
-import { Subscription } from 'rxjs';
-import { AbstractControl, FormControl } from '../models';
-import { ControlValueMapper, ControlStateMapper } from './interface';
-import { map, filter } from 'rxjs/operators';
-import { NgBaseDirective, NG_CONTROL_DIRECTIVE } from './base.directive';
+import { concat } from 'rxjs';
+import { FormControl } from '../models';
+import { ControlValueMapper } from './interface';
+import { NG_CONTROL_DIRECTIVE } from './base.directive';
 import {
   ControlAccessor,
   NG_CONTROL_ACCESSOR,
@@ -23,9 +22,10 @@ import {
   ControlContainerAccessor,
 } from '../accessors';
 import { resolveControlAccessor } from './util';
+import { NgControlNameDirective } from './control-name.directive';
 
 @Directive({
-  selector: '[ngFormControlName]',
+  selector: '[ngFormControlName]:not([formControl])',
   exportAs: 'ngForm',
   providers: [
     {
@@ -34,18 +34,20 @@ import { resolveControlAccessor } from './util';
     },
   ],
 })
-export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
+export class NgFormControlNameDirective
+  extends NgControlNameDirective<FormControl>
   implements ControlAccessor, OnChanges, OnDestroy {
+  static id = 0;
+
   @Input('ngFormControlName') controlName!: string;
-  @Input('ngFormControlStateMapper')
-  stateMapper?: ControlStateMapper;
   @Input('ngFormControlValueMapper')
-  valueMapper?: ControlValueMapper;
+  valueMapper: ControlValueMapper | undefined;
 
-  readonly control = new FormControl<any>();
+  readonly control = new FormControl<any>({
+    id: Symbol(`NgFormControlNameDirective-${NgFormControlNameDirective.id++}`),
+  });
+
   readonly accessor: ControlAccessor;
-
-  private innerSubscriptions: Subscription[] = [];
 
   constructor(
     @Self()
@@ -53,7 +55,7 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
     accessors: ControlAccessor[],
     @SkipSelf()
     @Inject(NG_CONTROL_CONTAINER_ACCESSOR)
-    private containerAccessor: ControlContainerAccessor,
+    protected containerAccessor: ControlContainerAccessor,
     renderer: Renderer2,
     el: ElementRef,
   ) {
@@ -62,122 +64,36 @@ export class NgFormControlNameDirective extends NgBaseDirective<AbstractControl>
     this.accessor = resolveControlAccessor(accessors);
 
     this.subscriptions.push(
-      this.accessor.control.replayState().subscribe(this.control.source),
-      this.accessor.control.events
-        .pipe(filter(({ type }) => type !== 'validation'))
-        .subscribe(this.control.source),
-      this.control.events
-        .pipe(filter(({ type }) => type !== 'validation'))
-        .subscribe(this.accessor.control.source),
+      concat(
+        this.accessor.control.replayState(),
+        this.accessor.control.events,
+      ).subscribe(this.control.source),
+      this.control.events.subscribe(this.accessor.control.source),
     );
   }
 
-  ngOnChanges(_: {
-    controlName?: SimpleChange;
-    stateMapper?: SimpleChange;
-    valueMapper?: SimpleChange;
-  }) {
+  ngOnChanges(_: { controlName?: SimpleChange; valueMapper?: SimpleChange }) {
     if (!this.controlName) {
       throw new Error(
         `NgFormControlNameDirective must be passed a ngFormControlName`,
       );
     }
 
-    this.cleanupInnerSubs();
-    this.onChangesSubscriptions.forEach(sub => sub.unsubscribe());
-    this.onChangesSubscriptions = [];
-
-    this.onChangesSubscriptions.push(
-      this.containerAccessor.control
-        .observe('controls', this.controlName, { ignoreNoEmit: true })
-        .subscribe((providedControl: AbstractControl) => {
-          this.cleanupInnerSubs();
-
-          if (providedControl) {
-            this.control.emitEvent({
-              source: this.id,
-              type: 'ControlAccessor',
-              value: 'PreInit',
-            });
-
-            this.innerSubscriptions.push(
-              providedControl
-                .replayState()
-                .pipe(map(this.fromProvidedControlMapFn()))
-                .subscribe(this.control.source),
-              providedControl.events
-                .pipe(
-                  filter(({ type }) => type !== 'validation'),
-                  map(this.fromProvidedControlMapFn()),
-                )
-                .subscribe(this.control.source),
-            );
-
-            if (this.valueMapper && this.valueMapper.accessorValidator) {
-              const validator = this.valueMapper.accessorValidator;
-
-              this.control.setErrors(validator(this.control), {
-                source: this.id,
-              });
-
-              // validate the control via a service to avoid the possibility
-              // of the user somehow deleting our validator function.
-              this.onChangesSubscriptions.push(
-                this.control.events
-                  .pipe(
-                    filter(
-                      ({ type, value, source }) =>
-                        type === 'validation' &&
-                        value === 'internalEnd' &&
-                        source === this.control.id,
-                    ),
-                  )
-                  .subscribe(() => {
-                    this.control.setErrors(validator(this.control), {
-                      source: this.id,
-                    });
-                  }),
-              );
-            } else {
-              this.control.setErrors(null, {
-                source: this.id,
-              });
-            }
-
-            this.innerSubscriptions.push(
-              this.control.events
-                .pipe(
-                  filter(({ type }) => type !== 'validation'),
-                  map(this.toProvidedControlMapFn()),
-                )
-                .subscribe(providedControl.source),
-            );
-
-            this.control.emitEvent({
-              source: this.id,
-              type: 'ControlAccessor',
-              value: 'PostInit',
-            });
-          }
-        }),
+    this.assertValidValueMapper(
+      'NgFormControlNameDirective#ngFormControlValueMapper',
+      this.valueMapper,
     );
+
+    super.ngOnChanges(_);
   }
 
-  ngOnDestroy() {
-    super.ngOnDestroy();
+  protected validateProvidedControl(control: any): control is FormControl {
+    if (!(control instanceof FormControl)) {
+      throw new Error(
+        'NgFormControlNameDirective must link to an instance of FormControl',
+      );
+    }
 
-    this.cleanupInnerSubs();
-  }
-
-  private cleanupInnerSubs() {
-    this.innerSubscriptions.forEach(sub => sub.unsubscribe());
-
-    this.control.emitEvent({
-      source: this.id,
-      type: 'ControlAccessor',
-      value: 'Cleanup',
-    });
-
-    this.innerSubscriptions = [];
+    return true;
   }
 }

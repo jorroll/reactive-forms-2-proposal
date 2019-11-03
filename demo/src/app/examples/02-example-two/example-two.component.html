@@ -21,9 +21,19 @@
       <input [ngFormControl]="controlA" />
     </div>
 
+    <div *ngIf="controlA.dirty && controlA.invalid" class="error">
+      <p>controlA Errors:</p>
+      <p>{{ controlA.errors | json }}</p>
+    </div>
+
     <div>
       <label> controlB </label>
       <input [ngFormControl]="controlB" />
+    </div>
+
+    <div *ngIf="controlB.dirty && controlB.invalid" class="error">
+      <p>controlB Errors:</p>
+      <p>{{ controlB.errors | json }}</p>
     </div>
   </mat-card-content>
 </mat-card>

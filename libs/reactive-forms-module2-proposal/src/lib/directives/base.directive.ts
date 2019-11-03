@@ -3,14 +3,13 @@ import {
   OnChanges,
   Renderer2,
   ElementRef,
-  Input,
   InjectionToken,
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { AbstractControl, ControlEvent } from '../models';
-import { ControlStateMapper, ControlValueMapper } from './interface';
-import { filter, map, startWith } from 'rxjs/operators';
+import { ControlValueMapper } from './interface';
 import { ControlAccessor } from '../accessors';
+import { isValueStateChange } from './util';
 
 export const NG_CONTROL_DIRECTIVE = new InjectionToken<
   NgBaseDirective<AbstractControl>
@@ -19,24 +18,24 @@ export const NG_CONTROL_DIRECTIVE = new InjectionToken<
 export abstract class NgBaseDirective<T extends AbstractControl>
   implements ControlAccessor<T>, OnChanges, OnDestroy {
   static id = 0;
-
   abstract readonly control: T;
 
-  id = Symbol(`NgBaseDirective ${NgBaseDirective.id}`);
-
-  stateMapper?: ControlStateMapper;
   valueMapper?: ControlValueMapper;
+
+  protected id = Symbol(`NgDirective-${NgBaseDirective.id++}`);
 
   protected onChangesSubscriptions: Subscription[] = [];
   protected subscriptions: Subscription[] = [];
 
-  constructor(protected renderer: Renderer2, protected el: ElementRef) {
-    NgBaseDirective.id++;
-  }
+  constructor(protected renderer: Renderer2, protected el: ElementRef) {}
 
   abstract ngOnChanges(...args: any[]): void;
 
   ngOnInit() {
+    // The nativeElement will be a comment if a directive is place on
+    // an `<ng-container>` element.
+    if (!(this.el.nativeElement instanceof HTMLElement)) return;
+
     this.subscriptions.push(
       this.control
         .observe('touched', { ignoreNoEmit: true })
@@ -79,78 +78,82 @@ export abstract class NgBaseDirective<T extends AbstractControl>
     this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 
-  protected toProvidedControlMapFn() {
-    if (this.stateMapper && this.valueMapper) {
-      const stateMapper = this.stateMapper;
-      const valueMapper = this.valueMapper;
+  protected assertValidValueMapper(name: string, mapper?: ControlValueMapper) {
+    if (!mapper) return;
 
-      return (state: ControlEvent<string, any>) => {
-        if (state.type === 'value') {
-          state = {
-            ...state,
-            value: valueMapper.toControl(state.value),
-          };
-        }
+    if (typeof mapper !== 'object') {
+      throw new Error(`${name} expected an object`);
+    }
 
-        return stateMapper.toControl(state);
-      };
-    } else if (this.stateMapper) {
-      const stateMapper = this.stateMapper;
+    if (typeof mapper.toControl !== 'function') {
+      throw new Error(`${name} expected to have a "toControl" mapper function`);
+    }
 
-      return (state: ControlEvent<string, any>) => stateMapper.toControl(state);
-    } else if (this.valueMapper) {
-      const valueMapper = this.valueMapper;
+    if (typeof mapper.toAccessor !== 'function') {
+      throw new Error(
+        `${name} expected to have a "toAccessor" mapper function`,
+      );
+    }
 
-      return (state: ControlEvent<string, any>) => {
-        if (state.type === 'value') {
-          return {
-            ...state,
-            value: valueMapper.toControl(state.value),
-          };
-        }
-
-        return state;
-      };
-    } else {
-      return (state: ControlEvent<string, any>) => state;
+    if (
+      mapper.accessorValidator &&
+      typeof mapper.accessorValidator !== 'function'
+    ) {
+      throw new Error(
+        `${name} optional "accessorValidator" expected to be a function`,
+      );
     }
   }
 
-  protected fromProvidedControlMapFn() {
-    if (this.stateMapper && this.valueMapper) {
-      const stateMapper = this.stateMapper;
+  protected toProvidedControlMapFn() {
+    if (this.valueMapper) {
       const valueMapper = this.valueMapper;
 
-      return (state: ControlEvent<string, any>) => {
-        if (state.type === 'value') {
-          state = {
-            ...state,
-            value: valueMapper.fromControl(state.value),
-          };
-        }
+      return (event: ControlEvent) => {
+        if (isValueStateChange(event)) {
+          const changes = new Map(event.changes);
 
-        return stateMapper.fromControl(state);
-      };
-    } else if (this.stateMapper) {
-      const stateMapper = this.stateMapper;
+          changes.set(
+            'value',
+            valueMapper.toControl(event.changes.get('value')),
+          );
 
-      return (state: ControlEvent<string, any>) =>
-        stateMapper.fromControl(state);
-    } else if (this.valueMapper) {
-      const valueMapper = this.valueMapper;
-
-      return (state: ControlEvent<string, any>) => {
-        if (state.type === 'value') {
           return {
-            ...state,
-            value: valueMapper.fromControl(state.value),
+            ...event,
+            changes,
           };
         }
 
-        return state;
+        return event;
       };
-    } else {
-      return (state: ControlEvent<string, any>) => state;
     }
+
+    return (event: ControlEvent) => event;
+  }
+
+  protected toAccessorControlMapFn() {
+    if (this.valueMapper) {
+      const valueMapper = this.valueMapper;
+
+      return (event: ControlEvent) => {
+        if (isValueStateChange(event)) {
+          const changes = new Map(event.changes);
+
+          changes.set(
+            'value',
+            valueMapper.toAccessor(event.changes.get('value')),
+          );
+
+          return {
+            ...event,
+            changes,
+          };
+        }
+
+        return event;
+      };
+    }
+
+    return (event: ControlEvent) => event;
   }
 }
