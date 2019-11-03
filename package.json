@@ -7,6 +7,7 @@
     "build": "ng build",
     "test": "ng test",
     "lint": "ng lint",
+    "pub:rf2": "ng test rf2 && yarn --cwd=./libs/reactive-forms-module2-proposal version && ng build rf2 && yarn --cwd=./dist/reactive-forms-module2-proposal publish",
     "e2e": "ng e2e"
   },
   "private": true,
