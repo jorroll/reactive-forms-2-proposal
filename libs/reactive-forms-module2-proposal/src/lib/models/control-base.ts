@@ -8,6 +8,7 @@ import {
   ControlEventOptions,
   DeepReadonly,
   ControlEvent,
+  ValidationEvent,
 } from './abstract-control';
 import {
   filter,
@@ -33,11 +34,6 @@ export interface StateChange extends ControlEvent {
 export interface FocusEvent extends ControlEvent {
   type: 'Focus';
   focus: boolean;
-}
-
-export interface ValidationEvent extends ControlEvent {
-  type: 'Validation';
-  label: string;
 }
 
 export interface ValidationStartEvent<T = any> extends ValidationEvent {
@@ -98,6 +94,8 @@ export abstract class ControlBase<Value = any, Data = any>
   data: Data;
 
   source = new ControlSource<PartialControlEvent>();
+
+  readonly atomic = new Map<ControlId, (event: ControlEvent) => ((() => void) | null)>();
 
   protected _events = new ControlSource<ControlEvent>();
   events: Observable<
@@ -164,6 +162,9 @@ export abstract class ControlBase<Value = any, Data = any>
     share(),
   );
 
+  protected _validationEvents = new ControlSource<ValidationEvent>();
+  validationEvents = this._validationEvents.asObservable();
+
   protected _readonly = false;
   get readonly() {
     return this._readonly;
@@ -215,15 +216,28 @@ export abstract class ControlBase<Value = any, Data = any>
           // make sure we don't process an event we already processed
           event => !event.processed.includes(this.id),
         ),
-        map(event => {
-          event.processed.push(this.id);
-          if (!event.meta) event.meta = {};
-          if (!event.id) event.id = AbstractControl.eventId();
-          return this.processEvent(event as ControlEvent);
-        }),
-        filter(isTruthy),
       )
-      .subscribe(this._events);
+      .subscribe(event => {
+        event.processed.push(this.id);
+        if (!event.meta) event.meta = {};
+        if (!event.id) event.id = AbstractControl.eventId();
+
+        const newEvent = this.processEvent(event as ControlEvent);
+
+        if (newEvent) {
+          const callbacks: Array<() => void> = [];
+
+          this.atomic.forEach(transaction => {
+            const fn = transaction(newEvent);
+
+            if (fn) callbacks.push(fn);
+          });
+
+          this._events.next(newEvent);
+
+          callbacks.forEach(fn => fn());
+        }
+      });
 
     this._disabled = !!options.disabled;
     this._readonly = !!options.readonly;
@@ -1004,14 +1018,14 @@ export abstract class ControlBase<Value = any, Data = any>
     options: Omit<ControlEventOptions, 'processed' | 'source'> = {},
   ) {
     // Validation lifecycle hook
-    this.emitEvent<ValidationStartEvent<Value>>({
+    this._validationEvents.next({
       type: 'Validation',
       label: 'Start',
       controlValue: this._value,
       ...pluckOptions(options),
       source: this.id,
       processed: [],
-    });
+    } as ValidationStartEvent<Value>);
 
     const errors: (Readonly<ValidationErrors>) | null = this.validator
       ? this.validator(this)
@@ -1042,7 +1056,7 @@ export abstract class ControlBase<Value = any, Data = any>
     }
 
     // Validation lifecycle hook
-    this.emitEvent<ValidationInternalEvent<Value>>({
+    this._validationEvents.next({
       type: 'Validation',
       label: 'InternalComplete',
       controlValue: this._value,
@@ -1050,10 +1064,10 @@ export abstract class ControlBase<Value = any, Data = any>
       ...pluckOptions(options),
       source: this.id,
       processed: [],
-    });
+    } as ValidationInternalEvent<Value>);
 
     // Validation lifecycle hook
-    this.emitEvent<ValidationEndEvent<Value>>({
+    this._validationEvents.next({
       type: 'Validation',
       label: 'End',
       controlValue: this._value,
@@ -1061,7 +1075,7 @@ export abstract class ControlBase<Value = any, Data = any>
       ...pluckOptions(options),
       source: this.id,
       processed: [],
-    });
+    } as ValidationEndEvent<Value>);
   }
 
   protected processEvent(event: ControlEvent): ControlEvent | null {
@@ -1085,10 +1099,9 @@ export abstract class ControlBase<Value = any, Data = any>
           changes,
         } as StateChange;
       }
-      default: {
-        return event;
-      }
     }
+
+    return null;
   }
 
   /**
@@ -1109,6 +1122,10 @@ export abstract class ControlBase<Value = any, Data = any>
       case 'value': {
         if (this.equalValue(value)) return true;
         this._value = value;
+        // Note: following the addition of the `atomic` API, I'm not sure 
+        // if the below comment is still true. Not going to bother testing
+        // now though:
+        // 
         // The updateValidation call ("errorsStore" change) *must* come before
         // the "value" change. If not, then the errors
         // of linked controls will not be properly cleared.

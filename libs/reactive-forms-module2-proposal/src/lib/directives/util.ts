@@ -71,6 +71,12 @@ export function resolveControlContainerAccessor(
   }
 }
 
+export function isStateChange(
+  event: PartialControlEvent,
+): event is StateChange {
+  return event.type === 'StateChange';
+}
+
 export function isValueStateChange(
   event: PartialControlEvent,
 ): event is StateChange {

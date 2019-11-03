@@ -26,9 +26,18 @@ export interface PartialControlEvent {
   noEmit?: boolean;
 }
 
+export namespace ControlEvent {
+  export const DELETE = Symbol('CONTROL_EVENT_DELETE_TOKEN');
+}
+
 export interface ControlEvent extends PartialControlEvent {
   id: string;
   meta: { [key: string]: any };
+}
+
+export interface ValidationEvent extends ControlEvent {
+  type: 'Validation';
+  label: string;
 }
 
 export interface ControlEventOptions {
@@ -108,6 +117,15 @@ export interface AbstractControl<Value = any, Data = any> {
    */
   source: ControlSource<PartialControlEvent>;
 
+  /**
+   * ***Advanced API***
+   *
+   * The "atomic" map is used by controls + parent ControlContainers to ensure
+   * that parent/child state changes happen atomically before any events are
+   * emitted.
+   */
+  readonly atomic: Map<ControlId, (event: ControlEvent) => (() => void) | null>;
+
   /** An observable of all events for this AbstractControl */
   events: Observable<ControlEvent & { [key: string]: any }>;
 
@@ -140,6 +158,14 @@ export interface AbstractControl<Value = any, Data = any> {
    * form control should be focused or blurred.
    */
   focusChanges: Observable<boolean>;
+
+  /**
+   * These are special, internal events which signal when this control is
+   * starting or finishing validation.
+   *
+   * These events are not emitted from the `events` observable.
+   */
+  validationEvents: Observable<ValidationEvent>;
 
   readonly readonly: boolean;
   readonly submitted: boolean;

@@ -22,6 +22,7 @@ import {
 } from '../accessors';
 import { NgControlDirective } from './control.directive';
 import { ControlValueMapper } from './interface';
+import { concat } from 'rxjs';
 
 @Directive({
   selector: '[ngFormGroup]',
@@ -39,11 +40,18 @@ import { ControlValueMapper } from './interface';
 })
 export class NgFormGroupDirective extends NgControlDirective<FormGroup>
   implements OnChanges {
+  static id = 0;
   @Input('ngFormGroup') providedControl!: FormGroup;
   @Input('ngFormGroupValueMapper')
   valueMapper: ControlValueMapper | undefined;
 
-  readonly control = new FormGroup();
+  readonly control = new FormGroup<any>(
+    {},
+    {
+      id: Symbol(`NgFormGroupDirective ${NgFormGroupDirective.id++}`),
+    },
+  );
+
   readonly accessor: ControlContainerAccessor | null;
 
   constructor(
@@ -60,13 +68,11 @@ export class NgFormGroupDirective extends NgControlDirective<FormGroup>
 
     if (this.accessor) {
       this.subscriptions.push(
-        this.accessor.control.replayState().subscribe(this.control.source),
-        this.accessor.control.events
-          .pipe(filter(({ type }) => type !== 'Validation'))
-          .subscribe(this.control.source),
-        this.control.events
-          .pipe(filter(({ type }) => type !== 'Validation'))
-          .subscribe(this.accessor.control.source),
+        concat(
+          this.accessor.control.replayState(),
+          this.accessor.control.events,
+        ).subscribe(this.control.source),
+        this.control.events.subscribe(this.accessor.control.source),
       );
     }
   }

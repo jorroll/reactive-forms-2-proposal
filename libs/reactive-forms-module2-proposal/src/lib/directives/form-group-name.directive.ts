@@ -11,8 +11,8 @@ import {
   ElementRef,
   forwardRef,
 } from '@angular/core';
-import { Subscription, concat } from 'rxjs';
-import { AbstractControl, FormControl } from '../models';
+import { Subscription } from 'rxjs';
+import { AbstractControl, FormControl, FormGroup } from '../models';
 import { ControlValueMapper, ControlAccessorEvent } from './interface';
 import { map, filter } from 'rxjs/operators';
 import { NgBaseDirective, NG_CONTROL_DIRECTIVE } from './base.directive';
@@ -26,34 +26,32 @@ import { resolveControlAccessor } from './util';
 import { NgControlNameDirective } from './control-name.directive';
 
 @Directive({
-  selector: '[ngFormControlName]:not([formControl])',
+  selector: '[ngFormGroupName]',
   exportAs: 'ngForm',
   providers: [
     {
       provide: NG_CONTROL_DIRECTIVE,
-      useExisting: forwardRef(() => NgFormControlNameDirective),
+      useExisting: forwardRef(() => NgFormGroupNameDirective),
+    },
+    {
+      provide: NG_CONTROL_CONTAINER_ACCESSOR,
+      useExisting: forwardRef(() => NgFormGroupNameDirective),
     },
   ],
 })
-export class NgFormControlNameDirective
-  extends NgControlNameDirective<FormControl>
+export class NgFormGroupNameDirective extends NgControlNameDirective<FormGroup>
   implements ControlAccessor, OnChanges, OnDestroy {
-  static id = 0;
+    static id = 0;
 
-  @Input('ngFormControlName') controlName!: string;
-  @Input('ngFormControlValueMapper')
+  @Input('ngFormGroupName') controlName!: string;
+  @Input('ngFormGroupValueMapper')
   valueMapper: ControlValueMapper | undefined;
 
-  readonly control = new FormControl<any>({
-    id: Symbol(`NgFormControlNameDirective ${NgFormControlNameDirective.id++}`),
+  readonly control = new FormGroup<any>({}, {
+    id: Symbol(`NgFormGroupNameDirective ${NgFormGroupNameDirective.id++}`),
   });
 
-  readonly accessor: ControlAccessor;
-
   constructor(
-    @Self()
-    @Inject(NG_CONTROL_ACCESSOR)
-    accessors: ControlAccessor[],
     @SkipSelf()
     @Inject(NG_CONTROL_CONTAINER_ACCESSOR)
     protected containerAccessor: ControlContainerAccessor,
@@ -61,38 +59,28 @@ export class NgFormControlNameDirective
     el: ElementRef,
   ) {
     super(renderer, el);
-
-    this.accessor = resolveControlAccessor(accessors);
-
-    this.subscriptions.push(
-      concat(
-        this.accessor.control.replayState(),
-        this.accessor.control.events,
-      ).subscribe(this.control.source),
-      this.control.events.subscribe(this.accessor.control.source),
-    );
   }
 
   ngOnChanges(_: { controlName?: SimpleChange; valueMapper?: SimpleChange }) {
     if (!this.controlName) {
       throw new Error(
-        `NgFormControlNameDirective must be passed a ngFormControlName`,
+        `NgFormGroupNameDirective must be passed a ngFormControlName`,
       );
     }
 
     this.assertValidValueMapper(
-      'NgFormControlNameDirective#ngFormControlValueMapper',
+      'NgFormGroupNameDirective#ngFormControlValueMapper',
       this.valueMapper,
     );
 
     super.ngOnChanges(_);
   }
 
-  protected validateProvidedControl(control: any): control is FormControl {
-    if (!(control instanceof FormControl)) {
+  protected validateProvidedControl(control: any): control is FormGroup {
+    if (!(control instanceof FormGroup)) {
       throw new Error(
-        'NgFormControlNameDirective must link to an instance of FormControl',
-      );
+        'NgFormGroupNameDirective must link to an instance of FormGroup'
+      )
     }
 
     return true;

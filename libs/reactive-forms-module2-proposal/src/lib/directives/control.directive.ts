@@ -4,12 +4,14 @@ import { ControlValueMapper, ControlAccessorEvent } from './interface';
 import { map, filter } from 'rxjs/operators';
 import { NgBaseDirective } from './base.directive';
 import { ControlAccessor } from '../accessors';
+import { concat } from 'rxjs';
 
 export abstract class NgControlDirective<T extends AbstractControl>
   extends NgBaseDirective<T>
   implements ControlAccessor, OnChanges, OnDestroy {
   abstract providedControl: T;
-  abstract valueMapper: ControlValueMapper | undefined;
+
+  valueMapper?: ControlValueMapper;
 
   abstract readonly control: T;
 
@@ -21,70 +23,46 @@ export abstract class NgControlDirective<T extends AbstractControl>
     this.onChangesSubscriptions = [];
 
     this.control.emitEvent<ControlAccessorEvent>({
-      source: this.id,
       type: 'ControlAccessor',
       label: 'Cleanup',
     });
 
     this.control.emitEvent<ControlAccessorEvent>({
-      source: this.id,
       type: 'ControlAccessor',
       label: 'PreInit',
     });
 
     this.onChangesSubscriptions.push(
-      this.providedControl
-        .replayState()
+      concat(this.providedControl.replayState(), this.providedControl.events)
         .pipe(map(this.toAccessorControlMapFn()))
-        .subscribe(this.control.source),
-      this.providedControl.events
-        .pipe(
-          filter(({ type }) => type !== 'Validation'),
-          map(this.toAccessorControlMapFn()),
-        )
         .subscribe(this.control.source),
     );
 
     if (this.valueMapper && this.valueMapper.accessorValidator) {
       const validator = this.valueMapper.accessorValidator;
 
-      this.control.setErrors(validator(this.control), {
-        source: this.id,
-      });
+      this.control.setErrors(validator(this.control));
 
       // validate the control via a service to avoid the possibility
       // of the user somehow deleting our validator function.
       this.onChangesSubscriptions.push(
-        this.control.events
-          .pipe(
-            filter(
-              ({ type, label }) =>
-                type === 'Validation' && label === 'InternalComplete',
-            ),
-          )
+        this.control.validationEvents
+          .pipe(filter(({ label }) => label === 'InternalComplete'))
           .subscribe(() => {
-            this.control.setErrors(validator(this.control), {
-              source: this.id,
-            });
+            this.control.setErrors(validator(this.control));
           }),
       );
     } else {
-      this.control.setErrors(null, {
-        source: this.id,
-      });
+      this.control.setErrors(null);
     }
 
     this.onChangesSubscriptions.push(
       this.control.events
-        .pipe(
-          filter(({ type }) => type !== 'Validation'),
-          map(this.toProvidedControlMapFn()),
-        )
+        .pipe(map(this.toProvidedControlMapFn()))
         .subscribe(this.providedControl.source),
     );
 
     this.control.emitEvent<ControlAccessorEvent>({
-      source: this.id,
       type: 'ControlAccessor',
       label: 'PostInit',
     });
@@ -94,7 +72,6 @@ export abstract class NgControlDirective<T extends AbstractControl>
     super.ngOnDestroy();
 
     this.control.emitEvent<ControlAccessorEvent>({
-      source: this.id,
       type: 'ControlAccessor',
       label: 'Cleanup',
     });

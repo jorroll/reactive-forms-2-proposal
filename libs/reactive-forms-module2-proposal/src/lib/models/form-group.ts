@@ -50,7 +50,7 @@ export class FormGroup<
     this._enabledValue = extractEnabledValue(controls);
 
     this.setupControls(new Map());
-    this.subscribeToControls();
+    this.registerControls();
   }
 
   get<A extends keyof T>(a: A): T[A];
@@ -226,8 +226,9 @@ export class FormGroup<
         this._value = newValue;
         this._enabledValue = newEnabledValue;
 
-        // updateValidation must come before "value" change
-        // is set
+        // As with the ControlBase "value" change, I think "updateValidation"
+        // needs to come before the "value" change is set. See the ControlBase
+        // "value" StateChange for more info.
         this.updateValidation(changes, event);
         changes.set('value', newValue);
         return true;
@@ -235,12 +236,12 @@ export class FormGroup<
       case 'controlsStore': {
         if (isMapEqual(this.controlsStore, value)) return true;
 
+        this.deregisterControls();
         this._controlsStore = new Map(value);
         this._controls = Object.fromEntries(value) as T;
         changes.set('controlsStore', new Map(value));
-        this.unsubscribeToControls();
         this.setupControls(changes, event); // <- will setup value
-        this.subscribeToControls();
+        this.registerControls();
         return true;
       }
       default: {
@@ -272,8 +273,8 @@ export class FormGroup<
         this._value = newValue;
         this._enabledValue = newEnabledValue;
 
-        // updateValidation must come before "value" change
-        // is set
+        // As with the "value" change, I think "updateValidation"
+        // needs to come before the "value" change is set
         this.updateValidation(changes, event);
         changes.set('value', newValue);
         return true;

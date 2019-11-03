@@ -17,24 +17,22 @@ export const NG_CONTROL_DIRECTIVE = new InjectionToken<
 
 export abstract class NgBaseDirective<T extends AbstractControl>
   implements ControlAccessor<T>, OnChanges, OnDestroy {
-  static id = 0;
-
   abstract readonly control: T;
-
-  id = Symbol(`NgBaseDirective ${NgBaseDirective.id}`);
 
   valueMapper?: ControlValueMapper;
 
   protected onChangesSubscriptions: Subscription[] = [];
   protected subscriptions: Subscription[] = [];
 
-  constructor(protected renderer: Renderer2, protected el: ElementRef) {
-    NgBaseDirective.id++;
-  }
+  constructor(protected renderer: Renderer2, protected el: ElementRef) {}
 
   abstract ngOnChanges(...args: any[]): void;
 
   ngOnInit() {
+    // The nativeElement will be a comment if a directive is place on
+    // an `<ng-container>` element.
+    if (!(this.el.nativeElement instanceof HTMLElement)) return;
+
     this.subscriptions.push(
       this.control
         .observe('touched', { ignoreNoEmit: true })
@@ -116,8 +114,6 @@ export abstract class NgBaseDirective<T extends AbstractControl>
             'value',
             valueMapper.toControl(event.changes.get('value')),
           );
-
-          console.log('changes', changes);
 
           return {
             ...event,

@@ -66,6 +66,10 @@ export class FormArray<
   FormArrayEnabledValue<T>,
   D
 > {
+  static id = 0;
+
+  id = Symbol(`FormArray-${FormArray.id++}`);
+
   protected _controlsStore: ReadonlyMap<Indices<T>, T[Indices<T>]> = new Map();
   get controlsStore() {
     return this._controlsStore;
@@ -83,7 +87,7 @@ export class FormArray<
     this._enabledValue = extractEnabledValue(controls);
 
     this.setupControls(new Map());
-    this.subscribeToControls();
+    this.registerControls();
   }
 
   get<A extends Indices<T>>(a: A): T[A];
@@ -303,8 +307,9 @@ export class FormArray<
         this._value = newValue;
         this._enabledValue = newEnabledValue;
 
-        // updateValidation must come before "value" change
-        // is set
+        // As with the ControlBase "value" change, I think "updateValidation"
+        // needs to come before the "value" change is set. See the ControlBase
+        // "value" StateChange for more info.
         this.updateValidation(changes, event);
         changes.set('value', newValue);
         return true;
@@ -312,12 +317,12 @@ export class FormArray<
       case 'controlsStore': {
         if (isMapEqual(this.controlsStore, value)) return true;
 
+        this.deregisterControls();
         this._controlsStore = new Map(value);
         this._controls = (Array.from(value.values()) as any) as T;
         changes.set('controlsStore', new Map(value));
-        this.unsubscribeToControls();
         this.setupControls(changes, event); // <- will setup value
-        this.subscribeToControls();
+        this.registerControls();
         return true;
       }
       default: {
@@ -351,8 +356,9 @@ export class FormArray<
         this._value = newValue;
         this._enabledValue = newEnabledValue;
 
-        // updateValidation must come before "value" change
-        // is set
+        // As with the ControlBase "value" change, I think "updateValidation"
+        // needs to come before the "value" change is set. See the ControlBase
+        // "value" StateChange for more info.
         this.updateValidation(changes, event);
         changes.set('value', newValue);
         return true;

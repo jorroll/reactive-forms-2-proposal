@@ -17,6 +17,7 @@ import { resolveControlAccessor } from './util';
 import { ControlAccessor, NG_CONTROL_ACCESSOR } from '../accessors';
 import { NgControlDirective } from './control.directive';
 import { ControlValueMapper } from './interface';
+import { concat } from 'rxjs';
 
 @Directive({
   selector: '[ngFormControl]:not([formControl])',
@@ -30,11 +31,15 @@ import { ControlValueMapper } from './interface';
 })
 export class NgFormControlDirective extends NgControlDirective<FormControl>
   implements ControlAccessor, OnChanges, OnDestroy {
+  static id = 0;
   @Input('ngFormControl') providedControl!: FormControl;
   @Input('ngFormControlValueMapper')
   valueMapper: ControlValueMapper | undefined;
 
-  readonly control = new FormControl();
+  readonly control = new FormControl<any>(null, {
+    id: Symbol(`NgFormControlDirective ${NgFormControlDirective.id++}`),
+  });
+
   readonly accessor: ControlAccessor;
 
   constructor(
@@ -49,13 +54,11 @@ export class NgFormControlDirective extends NgControlDirective<FormControl>
     this.accessor = resolveControlAccessor(accessors);
 
     this.subscriptions.push(
-      this.accessor.control.replayState().subscribe(this.control.source),
-      this.accessor.control.events
-        .pipe(filter(({ type }) => type !== 'Validation'))
-        .subscribe(this.control.source),
-      this.control.events
-        .pipe(filter(({ type }) => type !== 'Validation'))
-        .subscribe(this.accessor.control.source),
+      concat(
+        this.accessor.control.replayState(),
+        this.accessor.control.events,
+      ).subscribe(this.control.source),
+      this.control.events.subscribe(this.accessor.control.source),
     );
   }
 
