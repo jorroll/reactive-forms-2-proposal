@@ -28,7 +28,7 @@ describe('FormControl', () => {
       expect(control.touched).toBe(true);
       expect(control.id).toBe('my-id');
       expect(control.data).toBe('myData');
-      expect(typeof control.validator).toBe('function');
+      expect(typeof control.validatorStore.get(control.id)).toBe('function');
     });
   });
 

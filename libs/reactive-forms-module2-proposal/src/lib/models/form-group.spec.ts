@@ -48,7 +48,7 @@ describe('FormGroup', () => {
         expect(control.childrenTouched).toBe(false);
         expect(control.id).toBe('my-id');
         expect(control.data).toBe('myData');
-        expect(typeof control.validator).toBe('function');
+        expect(typeof control.validatorStore.get(control.id)).toBe('function');
       });
     });
 
@@ -157,7 +157,7 @@ describe('FormGroup', () => {
         expect(control.childrenTouched).toBe(false);
         expect(control.touched).toBe(false);
         expect(control.data).toBeFalsy();
-        expect(control.validator).toBe(null);
+        expect(control.validatorStore.get(control.id)).toBe(undefined);
       });
 
       test('with args & disabled', () => {
@@ -195,7 +195,7 @@ describe('FormGroup', () => {
         expect(control.childrenTouched).toBe(true);
         expect(control.touched).toBe(true);
         expect(control.data).toBeFalsy();
-        expect(control.validator).toBe(null);
+        expect(control.validatorStore.get(control.id)).toBe(undefined);
       });
     });
 
