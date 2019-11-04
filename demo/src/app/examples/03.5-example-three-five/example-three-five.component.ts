@@ -1,7 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ValidatorFn, FormControl } from 'reactive-forms-module2-proposal';
 import { map } from 'rxjs/operators';
-import { concat } from 'rxjs';
 
 // regex from https://www.regextester.com/96683
 const dateRegex = /^([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))$/;
@@ -73,19 +72,19 @@ export class ExampleThreeFiveComponent implements OnInit {
 
   ngOnInit() {
     // To understand why this works,
-    // see the github README on the StateChange API.
-    // As a reminder, any StateChange originating from the `inputControl`
+    // see the github README on the ControlEvent API.
+    // As a reminder, any ControlEvent originating from the `inputControl`
     // will not be re-processed by the inputControl (even if the `dateControl`
-    // modifies the inputControl's StateChange before applying it).
+    // modifies the inputControl's ControlEvent before applying it).
 
     // example flow:
     // - inputControl is changed in the UI
-    // - inputControl processes `setValue` StateChange and emits it from `inputControl#changes`
-    // - The dateControl's subscription to `inputControl#changes` turns the string value
-    //   into a `Date` value before processing the StateChange and re-emitting it from
-    //   `dateControl#changes`.
-    // - The inputControl's subscription to `dateControl#changes` turns the `Date` into a string
-    //   and before then filtering out the `StateChange` because the `inputControl` has already
+    // - inputControl processes the value change ControlEvent and emits it from `inputControl#events`
+    // - The dateControl's subscription to `inputControl#events` turns the string value
+    //   into a `Date` value before processing the ControlEvent and re-emitting it from
+    //   `dateControl#events`.
+    // - The inputControl's subscription to `dateControl#events` turns the `Date` into a string
+    //   before then filtering out the `ControlEvent` because the `inputControl` has already
     //   processed it.
 
     // Important not to sync all the inputControl's state as the `dateControl`

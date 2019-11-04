@@ -4,6 +4,7 @@
 
 - Fnished FormGroup and FormArray implementation. This also resulted in some tweaks to the ControlEvent API.
 - Added some form directives such as `FormGroupNameDirective` and cleaned up the directive implementations.
+- Fixed potential validation race conditions.
 
 ## 2019/10/15
 

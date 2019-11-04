@@ -22,7 +22,9 @@ export abstract class NgBaseDirective<T extends AbstractControl>
 
   valueMapper?: ControlValueMapper;
 
-  protected id = Symbol(`NgDirective-${NgBaseDirective.id++}`);
+  protected accessorValidatorId = Symbol(
+    `NgDirectiveAccessorValidator-${NgBaseDirective.id++}`,
+  );
 
   protected onChangesSubscriptions: Subscription[] = [];
   protected subscriptions: Subscription[] = [];

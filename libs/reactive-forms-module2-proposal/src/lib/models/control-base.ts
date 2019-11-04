@@ -20,8 +20,8 @@ import {
   shareReplay,
   skip,
 } from 'rxjs/operators';
-import { Observable, from, merge, of } from 'rxjs';
-import { isMapEqual, isTruthy, isProcessed, pluckOptions } from './util';
+import { Observable, of } from 'rxjs';
+import { isMapEqual, isProcessed, pluckOptions } from './util';
 
 export type ControlBaseValue<T> = T extends ControlBase<infer V, any> ? V : any;
 export type ControlBaseData<T> = T extends ControlBase<any, infer D> ? D : any;
@@ -95,7 +95,10 @@ export abstract class ControlBase<Value = any, Data = any>
 
   source = new ControlSource<PartialControlEvent>();
 
-  readonly atomic = new Map<ControlId, (event: ControlEvent) => ((() => void) | null)>();
+  readonly atomic = new Map<
+    ControlId,
+    (event: ControlEvent) => (() => void) | null
+  >();
 
   protected _events = new ControlSource<ControlEvent>();
   events: Observable<
@@ -198,12 +201,11 @@ export abstract class ControlBase<Value = any, Data = any>
     return this._validatorStore;
   }
 
-  protected _validator: ValidatorFn | null = null;
-  get validator() {
-    return this._validator;
-  }
-
-  constructor(controlId: ControlId, value?: Value, options: IControlBaseArgs<Data> = {}) {
+  constructor(
+    controlId: ControlId,
+    value?: Value,
+    options: IControlBaseArgs<Data> = {},
+  ) {
     // need to provide ControlId in constructor otherwise
     // initial errors will have incorrect source ID
     this.id = controlId;
@@ -268,10 +270,6 @@ export abstract class ControlBase<Value = any, Data = any>
         [this.id, composeValidators(options.validators as ValidatorFn)!],
       ]);
     }
-
-    this._validator = composeValidators(
-      Array.from(this.validatorStore.values()),
-    );
 
     this.updateValidation(new Map());
   }
@@ -1029,19 +1027,19 @@ export abstract class ControlBase<Value = any, Data = any>
       processed: [],
     } as ValidationStartEvent<Value>);
 
-    const errors: (Readonly<ValidationErrors>) | null = this.validator
-      ? this.validator(this)
-      : null;
-
     const errorsStore = new Map(this.errorsStore);
     let change = false;
 
-    if (errors && Object.keys(errors).length !== 0) {
-      change = true;
-      errorsStore.set(this.id, errors);
-    } else if (errorsStore.delete(this.id)) {
-      change = true;
-    }
+    this.validatorStore.forEach((validator, key) => {
+      const errors = validator(this);
+
+      if (errors && Object.keys(errors).length !== 0) {
+        change = true;
+        errorsStore.set(key, errors);
+      } else if (errorsStore.delete(key)) {
+        change = true;
+      }
+    });
 
     if (change) {
       this._errorsStore = errorsStore;
@@ -1062,7 +1060,7 @@ export abstract class ControlBase<Value = any, Data = any>
       type: 'Validation',
       label: 'InternalComplete',
       controlValue: this._value,
-      validationResult: errors,
+      validationResult: this._errors,
       ...pluckOptions(options),
       source: this.id,
       processed: [],
@@ -1098,6 +1096,7 @@ export abstract class ControlBase<Value = any, Data = any>
 
         return {
           ...event,
+          processed: [this.id],
           changes,
         } as StateChange;
       }
@@ -1124,10 +1123,6 @@ export abstract class ControlBase<Value = any, Data = any>
       case 'value': {
         if (this.equalValue(value)) return true;
         this._value = value;
-        // Note: following the addition of the `atomic` API, I'm not sure 
-        // if the below comment is still true. Not going to bother testing
-        // now though:
-        // 
         // The updateValidation call ("errorsStore" change) *must* come before
         // the "value" change. If not, then the errors
         // of linked controls will not be properly cleared.
@@ -1190,10 +1185,23 @@ export abstract class ControlBase<Value = any, Data = any>
       }
       case 'validatorStore': {
         if (isMapEqual(this._validatorStore, value)) return true;
+
+        const errorsStore = new Map(this._errorsStore);
+
+        // delete existing validator errors ahead of
+        // running validation again below
+        let errorsChanged = false;
+        this._validatorStore.forEach((_, key) => {
+          if (errorsStore.delete(key)) {
+            errorsChanged = true;
+          }
+        });
+
+        this._errorsStore = errorsStore;
+
+        changes.set('errorsStore', new Map(errorsStore));
+
         this._validatorStore = new Map(value);
-        this._validator = composeValidators(
-          Array.from(this._validatorStore.values()),
-        );
         // As with the "value" change, I think "updateValidation"
         // needs to come before the "validatorStore" change is set
         this.updateValidation(changes, event);

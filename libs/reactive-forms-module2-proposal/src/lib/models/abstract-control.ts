@@ -164,9 +164,6 @@ export interface AbstractControl<Value = any, Data = any> {
    */
   readonly validatorStore: ReadonlyMap<ControlId, ValidatorFn>;
 
-  readonly validator: ValidatorFn | null;
-
-
   /**
    * ***Advanced API***
    *

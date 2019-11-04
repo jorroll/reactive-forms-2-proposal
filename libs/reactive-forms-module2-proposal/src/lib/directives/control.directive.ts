@@ -1,4 +1,4 @@
-import { Input, OnDestroy, OnChanges, SimpleChange } from '@angular/core';
+import { OnDestroy, OnChanges, SimpleChange } from '@angular/core';
 import { AbstractControl } from '../models';
 import { ControlValueMapper, ControlAccessorEvent } from './interface';
 import { map, filter } from 'rxjs/operators';
@@ -42,7 +42,7 @@ export abstract class NgControlDirective<T extends AbstractControl>
       const validator = this.valueMapper.accessorValidator;
 
       this.control.setErrors(validator(this.control), {
-        source: this.id,
+        source: this.accessorValidatorId,
       });
 
       // validate the control via a service to avoid the possibility
@@ -52,13 +52,13 @@ export abstract class NgControlDirective<T extends AbstractControl>
           .pipe(filter(({ label }) => label === 'InternalComplete'))
           .subscribe(() => {
             this.control.setErrors(validator(this.control), {
-              source: this.id,
+              source: this.accessorValidatorId,
             });
           }),
       );
     } else {
       this.control.setErrors(null, {
-        source: this.id,
+        source: this.accessorValidatorId,
       });
     }
 
